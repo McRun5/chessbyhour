@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contact — Chess by Hour</title>
+<meta name="description" content="Get in touch about Chess by Hour: bug reports, ideas, privacy questions and partnership requests.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#e8edf1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121a21" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light dark;
+  --bg:#e8edf1; --surface:#f6f8fa; --ink:#18232e; --muted:#566573; --line:#cdd6de; --accent:#a87a1e;
+  --head:'Bricolage Grotesque','Avenir Next','Segoe UI',system-ui,sans-serif;
+  --body:'Figtree','Avenir Next','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#121a21; --surface:#1a242d; --ink:#e6edf3; --muted:#93a3b3; --line:#2b3947; --accent:#d9a940; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.65 var(--body)}
+.wrap{max-width:760px;margin:0 auto;padding:0 20px}
+a{color:var(--ink);text-underline-offset:3px}
+a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.back{display:inline-block;margin-top:28px;font-weight:600}
+h1{font:700 clamp(2rem,5vw,3rem)/1.05 var(--head);letter-spacing:-.03em;margin:24px 0 12px}
+.lede{color:var(--muted);font-size:1.08rem;max-width:56ch;margin:0 0 24px}
+h2{font:700 1.3rem/1.25 var(--head);letter-spacing:-.01em;margin:36px 0 8px}
+p,li{max-width:68ch}
+p{margin:0 0 12px}
+ul{margin:0 0 12px;padding-left:1.2em}
+li{margin-bottom:6px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 24px}
+.card .label{color:var(--muted);font-size:.9rem;margin:0 0 4px}
+.card .mail{font:700 clamp(1.3rem,4vw,1.8rem)/1.2 var(--head);letter-spacing:-.01em;word-break:break-all}
+.btn{display:inline-block;margin-top:14px;font:600 .95rem var(--body);background:var(--ink);color:var(--bg);border-radius:10px;padding:11px 20px;text-decoration:none}
+.btn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+footer{border-top:1px solid var(--line);margin-top:56px;padding:22px 0 44px;display:flex;flex-wrap:wrap;gap:10px 28px;justify-content:space-between;align-items:baseline;color:var(--muted);font-size:.9rem}
+footer p{margin:0}
+footer nav{display:flex;gap:22px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← Back to Chess by Hour</a>
+
+  <main>
+    <h1>Contact</h1>
+    <p class="lede">Found a bug, have an idea, or want to ask about privacy or advertising? Send a message and it will reach a real person.</p>
+
+    <div class="card">
+      <p class="label">Email</p>
+      <p class="mail"><a href="mailto:contact@yourdomain.com?subject=Chess%20by%20Hour">contact@yourdomain.com</a></p>
+      <a class="btn" href="mailto:contact@yourdomain.com?subject=Chess%20by%20Hour">Write an email</a>
+    </div>
+
+    <h2>What to include in a bug report</h2>
+    <ul>
+      <li>The Chess.com username you tried. Usernames are public, so it is safe to share.</li>
+      <li>The period and time control you selected.</li>
+      <li>Your browser and device, for example Chrome on Android.</li>
+      <li>What you expected to see and what you saw instead. A screenshot helps.</li>
+    </ul>
+
+    <h2>Other requests</h2>
+    <ul>
+      <li><strong>Privacy questions:</strong> see the <a href="privacy.html">privacy policy</a> first, then write if something is unclear.</li>
+      <li><strong>Data removal:</strong> this site does not store player data, so there is nothing to remove here. Profile details and games are shown as they appear on Chess.com, and can be changed there.</li>
+      <li><strong>Chess.com account problems:</strong> this site is not affiliated with Chess.com. For account, fair play or billing questions, please contact Chess.com Support.</li>
+    </ul>
+  </main>
+
+  <footer>
+    <p>© <span id="yr">2026</span> Chess by Hour</p>
+    <nav aria-label="Site">
+      <a href="index.html">Home</a>
+      <a href="index.html#about">About</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="contact.html" aria-current="page">Contact</a>
+    </nav>
+  </footer>
+</div>
+<script>document.getElementById('yr').textContent = new Date().getFullYear();</script>
+</body>
+</html>

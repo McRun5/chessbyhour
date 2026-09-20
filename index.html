@@ -1,0 +1,1084 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chess by Hour — when do you win at chess?</title>
+<meta name="description" content="Enter a Chess.com username and see the hours of the day when that player wins and loses the most.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#e8edf1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121a21" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://chessbyhour.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Chess by Hour">
+<meta property="og:title" content="When do you win at chess?">
+<meta property="og:description" content="Enter a Chess.com username and see the hours of the day you win and lose the most. Free, no signup.">
+<meta property="og:url" content="https://chessbyhour.com/">
+<meta property="og:image" content="https://chessbyhour.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A 24-hour dial showing which hours of the day a chess player wins and loses the most">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="When do you win at chess?">
+<meta name="twitter:description" content="Enter a Chess.com username and see the hours of the day you win and lose the most. Free, no signup.">
+<meta name="twitter:image" content="https://chessbyhour.com/og-image.png">
+<meta name="twitter:image:alt" content="A 24-hour dial showing which hours of the day a chess player wins and loses the most">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light dark;
+  --bg:#e8edf1; --surface:#f6f8fa; --field:#ffffff;
+  --ink:#18232e; --muted:#566573; --line:#cdd6de;
+  --win:#1f8a63; --loss:#b83b5e; --draw:#8b98a6;
+  --mid:#c3ccd5; --track:#d9e0e6; --accent:#a87a1e;
+  --head:'Bricolage Grotesque','Avenir Next','Segoe UI',system-ui,sans-serif;
+  --body:'Figtree','Avenir Next','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#121a21; --surface:#1a242d; --field:#0f161c;
+    --ink:#e6edf3; --muted:#93a3b3; --line:#2b3947;
+    --win:#45c495; --loss:#e0708f; --draw:#7d8b99;
+    --mid:#3a4957; --track:#202d38; --accent:#d9a940;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--body)}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* Intro + form */
+h1{font:700 clamp(2.4rem,6.5vw,4.4rem)/1 var(--head);letter-spacing:-.035em;margin:56px 0 14px;max-width:14ch}
+.lede{max-width:58ch;color:var(--muted);font-size:1.08rem;margin:0}
+form{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:30px 0 10px}
+.field{display:flex;flex-direction:column;gap:6px;font-size:.875rem;color:var(--muted)}
+.field.user{flex:1 1 300px;max-width:420px}
+input,select{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:10px;padding:0 14px;min-height:48px}
+input{font-size:1.1rem;width:100%}
+.primary{font:600 1rem var(--body);background:var(--ink);color:var(--bg);border:0;border-radius:10px;padding:0 26px;min-height:48px;cursor:pointer}
+.primary:disabled{opacity:.55;cursor:progress}
+#status{min-height:28px;margin:6px 0 0;font-size:.95rem;color:var(--muted)}
+#status.err{color:var(--loss);font-weight:500}
+@media (prefers-color-scheme: dark){#status.err{color:#f08aa5}}
+.prog{height:4px;background:var(--track);border-radius:2px;overflow:hidden;max-width:420px;margin-top:8px}
+.prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+
+/* Once analysis starts, the intro collapses and the form stays on top as a slim bar */
+.intro{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s cubic-bezier(.2,.7,.2,1),opacity .3s ease}
+.intro > div{min-height:0;overflow:hidden}
+.topbar{position:sticky;top:0;z-index:20;display:flow-root;border-bottom:1px solid transparent;transition:background-color .3s ease,border-color .3s ease}
+body.compact .intro{grid-template-rows:0fr;opacity:0}
+body.compact .topbar{background:var(--surface);border-bottom-color:var(--line)}
+body.compact .topbar form{margin:12px 0 0}
+body.compact .topbar .wrap{padding-bottom:12px}
+body.compact #status{min-height:0;margin:0}
+body.compact #status:not(:empty){margin:8px 0 0}
+body.compact .topbar .field > span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:560px){body.compact .field.user{flex:1 1 100%;max-width:none}}
+
+/* Results */
+#results{padding-bottom:64px}
+/* Player header */
+.player{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding-top:26px}
+.player[hidden]{display:none}
+.pl-avatar{position:relative;width:56px;height:56px;border-radius:50%;background:var(--track);overflow:hidden;flex:none;display:grid;place-items:center;font:700 1.4rem var(--head);color:var(--muted)}
+.pl-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.pl-main{min-width:0}
+.pl-name{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font:700 1.4rem/1.2 var(--head);letter-spacing:-.01em}
+.pl-name small{font:500 .95rem var(--body);color:var(--muted);letter-spacing:0}
+.ttl{font:700 .75rem var(--body);background:var(--accent);color:#1a1405;border-radius:6px;padding:2px 7px;align-self:center}
+.pl-loc{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.95rem;margin-top:2px}
+.pl-loc:empty{display:none}
+.pl-loc svg{flex:none}
+.pl-hint{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:.92rem;color:var(--muted)}
+.pl-hint:empty{display:none}
+.pl-hint .btn{min-height:38px;padding:0 14px}
+@media (max-width:620px){.pl-hint{margin-left:0;width:100%}}
+
+.controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;padding:22px 0;border-top:1px solid var(--line);margin-top:26px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:.95rem;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:6px 15px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip small{opacity:.7;margin-left:4px}
+.controls select{min-height:40px;padding:0 10px;font-size:.95rem}
+#tz{max-width:min(300px,86vw)}
+
+.hero{display:grid;grid-template-columns:minmax(300px,470px) 1fr;gap:44px;align-items:center;margin:8px 0 40px}
+@media (max-width:880px){.hero{grid-template-columns:1fr;gap:24px}}
+.dialbox{max-width:470px;width:100%;margin:0 auto}
+svg.dial{width:100%;height:auto;display:block;overflow:visible}
+.wedge{cursor:pointer;outline:none}
+.wedge .track{fill:var(--track);stroke:transparent}
+.wedge.sel .track{stroke:var(--ink);stroke-width:1.5}
+.wedge:focus-visible .track{stroke:var(--accent);stroke-width:2.5}
+.datum.thin{opacity:.38}
+.enter .datum{animation:grow .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i) * 24ms);transform-box:view-box;transform-origin:210px 210px}
+@keyframes grow{from{opacity:0;transform:scale(.72)}}
+@media (prefers-reduced-motion:reduce){.enter .datum{animation:none}.prog i,.intro,.topbar{transition:none}}
+.dlabel{font:600 11px var(--body);fill:var(--muted);text-anchor:middle;dominant-baseline:central}
+.dbig{font:700 46px var(--head);fill:var(--ink);text-anchor:middle;letter-spacing:-.02em}
+.dsub{font:500 12px var(--body);fill:var(--muted);text-anchor:middle}
+.legend{display:flex;align-items:center;gap:10px;justify-content:center;font-size:.85rem;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.legend .ramp{width:120px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--loss),var(--mid),var(--win))}
+
+.persona{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:0 0 14px}
+.persona:empty{display:none}
+.pchip{font:700 .92rem var(--body);background:var(--accent);color:#1a1405;border-radius:999px;padding:5px 15px}
+.pchip.alt{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:600}
+.pdet{flex-basis:100%;color:var(--muted);font-size:.92rem}
+.insight h2{font:700 clamp(1.5rem,3.2vw,2.1rem)/1.15 var(--head);letter-spacing:-.02em;margin:0 0 20px;max-width:26ch}
+.hl-w{color:var(--win)} .hl-l{color:var(--loss)}
+.readout{border-left:4px solid var(--accent);padding:4px 0 4px 16px;margin:0 0 26px}
+.readout .when{font:700 1.7rem/1.2 var(--head);letter-spacing:-.01em}
+.readout .tally{color:var(--muted);margin:2px 0 8px}
+.wdl{display:flex;height:10px;border-radius:5px;overflow:hidden;max-width:360px;background:var(--track)}
+.wdl i{display:block;height:100%}
+.wdl .w{background:var(--win)} .wdl .d{background:var(--draw)} .wdl .l{background:var(--loss)}
+.lists{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+@media (max-width:620px){.lists{grid-template-columns:1fr}}
+.lists h3{font:600 1rem var(--body);margin:0 0 6px}
+.lists ol{list-style:none;margin:0;padding:0}
+.rk{all:unset;box-sizing:border-box;display:grid;grid-template-columns:104px 1fr auto;gap:10px;align-items:center;width:100%;padding:9px 0;border-top:1px solid var(--line);cursor:pointer;font-size:.95rem}
+.rk:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.rk.sel{font-weight:600}
+.meter{height:8px;background:var(--track);border-radius:4px;overflow:hidden}
+.meter i{display:block;height:100%;border-radius:4px}
+.rk .n{color:var(--muted);font-size:.85rem;text-align:right;white-space:nowrap}
+.note{color:var(--muted);font-size:.92rem;margin:0}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 22px 18px;margin-bottom:24px}
+.panel h3{font:700 1.25rem var(--head);margin:0 0 4px;letter-spacing:-.01em}
+.panel .sub{margin:0 0 16px;color:var(--muted);font-size:.92rem}
+.bars{position:relative;display:grid;grid-template-columns:repeat(24,1fr);gap:3px;height:210px}
+.bars::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line)}
+.bcol{all:unset;box-sizing:border-box;position:relative;cursor:pointer;border-radius:4px}
+.bcol:hover,.bcol.sel{background:color-mix(in srgb,var(--ink) 9%,transparent)}
+.bcol:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.bcol .up,.bcol .dn{position:absolute;left:15%;right:15%;min-height:0}
+.bcol .up{bottom:50%;background:var(--win);border-radius:3px 3px 0 0}
+.bcol .dn{top:50%;background:var(--loss);border-radius:0 0 3px 3px}
+.blabels{display:grid;grid-template-columns:repeat(24,1fr);gap:3px;margin-top:6px;font-size:.72rem;color:var(--muted);text-align:center}
+.bkey{display:flex;gap:18px;font-size:.85rem;color:var(--muted);margin-top:10px}
+.bkey b{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:baseline}
+@media (max-width:560px){.blabels span:not(.show){visibility:hidden}.bars,.blabels{gap:2px}}
+
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+@media (max-width:560px){.week{grid-template-columns:repeat(4,1fr)}}
+.wd{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg)}
+.wd .dn2{font-size:.85rem;color:var(--muted)}
+.wd .pc{font:700 1.4rem/1.2 var(--head)}
+.wd .g{font-size:.8rem;color:var(--muted)}
+.wd .bar{height:6px;border-radius:3px;margin-top:8px}
+.heathead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+.heathead .sub{margin:0}
+.heatwrap{overflow-x:auto;padding-bottom:6px}
+.heat{display:grid;grid-template-columns:38px repeat(24,minmax(16px,1fr));gap:3px;min-width:620px}
+.hlab{font-size:.72rem;color:var(--muted);text-align:center;align-self:center}
+.hlab.day{text-align:right;padding-right:6px;font-size:.8rem}
+.hc{all:unset;box-sizing:border-box;height:30px;border-radius:4px;cursor:pointer}
+.hc.thin{opacity:.4}
+.hc:hover,.hc.sel{outline:2px solid var(--ink);outline-offset:-1px}
+.hc:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.heatread{margin:14px 0 4px;min-height:1.6em;font-weight:500}
+.heatfoot{display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between;align-items:center;margin-top:10px}
+.heatfoot .legend{margin:0}
+.legend .ramp.vol{background:linear-gradient(90deg,var(--track),var(--accent))}
+#heatNote{margin:10px 0 0}
+/* Buttons and share dialog */
+.btn{font:600 .95rem var(--body);border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:0 16px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn[hidden]{display:none}
+.btn:disabled{opacity:.5;cursor:progress}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.controls .btn.share{margin-left:auto;min-height:40px}
+dialog{border:1px solid var(--line);border-radius:18px;background:var(--surface);color:var(--ink);padding:0;width:min(860px,94vw);max-height:94vh;overflow:auto}
+dialog::backdrop{background:rgba(6,10,14,.65)}
+.shin{padding:20px 22px 22px}
+.shhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.shhead h3{font:700 1.3rem var(--head);margin:0;letter-spacing:-.01em}
+.shbody{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:start}
+#shareCanvas{display:block;height:min(64vh,600px);width:auto;border-radius:12px;border:1px solid var(--line)}
+.shbtns{display:grid;gap:10px;align-content:start}
+#shareMsg{min-height:1.5em;color:var(--muted);font-size:.9rem;margin:12px 0 0}
+@media (max-width:720px){.shbody{grid-template-columns:1fr}#shareCanvas{width:min(100%,340px);height:auto;margin:0 auto}}
+/* About section and site footer */
+.about{border-top:1px solid var(--line);margin-top:8px;padding:48px 0 4px;scroll-margin-top:96px}
+.about h2{font:700 clamp(1.5rem,3vw,2rem)/1.15 var(--head);letter-spacing:-.02em;margin:0 0 14px}
+.about h3{font:700 1.1rem var(--head);margin:0 0 10px}
+.about p{margin:0 0 12px;max-width:66ch}
+.about .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:30px 44px;margin-top:26px}
+.about ol,.about ul{margin:0;padding-left:1.2em}
+.about li{margin:0 0 9px;max-width:54ch}
+.about a,.sitefoot a{color:var(--ink);text-underline-offset:3px}
+.sitefoot{border-top:1px solid var(--line);margin-top:48px;padding:22px 0 44px;display:flex;flex-wrap:wrap;gap:10px 28px;justify-content:space-between;align-items:baseline;color:var(--muted);font-size:.9rem}
+.sitefoot p{margin:0}
+.sitefoot nav{display:flex;gap:22px;flex-wrap:wrap}
+.sitefoot .fine{flex-basis:100%}
+.foot{color:var(--muted);font-size:.85rem;max-width:80ch;margin:28px 0 0}
+.foot p{margin:0 0 6px}
+</style>
+</head>
+<body>
+<header class="wrap intro" id="intro">
+  <div>
+    <h1>When do you win at chess?</h1>
+    <p class="lede">Enter a Chess.com username. The site reads that player's public games and shows which hours of the day they win the most, and which hours they lose the most.</p>
+  </div>
+</header>
+
+<div class="topbar" id="topbar">
+  <div class="wrap">
+    <form id="f" autocomplete="off">
+      <label class="field user"><span>Chess.com username</span>
+        <input id="u" name="u" type="text" placeholder="e.g. hikaru" inputmode="text" autocapitalize="off" spellcheck="false" required>
+      </label>
+      <label class="field"><span>Period</span>
+        <select id="months">
+          <option value="3">Last 3 months</option>
+          <option value="6">Last 6 months</option>
+          <option value="12" selected>Last 12 months</option>
+          <option value="24">Last 24 months</option>
+          <option value="0">All games</option>
+        </select>
+      </label>
+      <button class="primary" id="go" type="submit">Analyze games</button>
+    </form>
+    <div id="status" role="status" aria-live="polite"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <main id="results" hidden>
+    <section class="player" id="player" hidden aria-label="Player">
+      <div class="pl-avatar" id="plAvatar" aria-hidden="true"></div>
+      <div class="pl-main">
+        <div class="pl-name" id="plName"></div>
+        <div class="pl-loc" id="plLoc"></div>
+      </div>
+      <div class="pl-hint" id="plHint"></div>
+    </section>
+
+    <div class="controls">
+      <div class="field"><span>Time control</span><div class="chips" id="chips"></div></div>
+      <label class="field"><span>Time zone</span>
+        <select id="tz"></select>
+      </label>
+      <label class="field"><span>Minimum games per hour</span>
+        <select id="min"><option>10</option><option>30</option><option>50</option><option>100</option><option>200</option><option>500</option><option>1000</option></select>
+      </label>
+      <button type="button" class="btn share" id="shareBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v14"/></svg>
+        Share results
+      </button>
+    </div>
+
+    <section class="hero" aria-label="Results by hour">
+      <div class="dialbox">
+        <svg class="dial" id="dial" viewBox="0 0 420 420" role="group" aria-label="24-hour dial: length is games played, color is win rate"></svg>
+        <div class="legend"><span>Loses more</span><span class="ramp"></span><span>Wins more</span></div>
+        <div class="legend">Longer wedge = more games played</div>
+      </div>
+      <div class="insight">
+        <div class="persona" id="persona"></div>
+        <h2 id="headline"></h2>
+        <div class="readout" id="readout" aria-live="polite"></div>
+        <div class="lists">
+          <div><h3>Best hours</h3><ol id="best"></ol></div>
+          <div><h3>Toughest hours</h3><ol id="worst"></ol></div>
+        </div>
+        <p class="note" id="rankNote"></p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>Wins and losses by hour</h3>
+      <p class="sub">Wins go up, losses go down. Draws are not drawn but count in the win rate.</p>
+      <div class="bars" id="bars"></div>
+      <div class="blabels" id="blabels"></div>
+      <div class="bkey"><span><b style="background:var(--win)"></b>Wins</span><span><b style="background:var(--loss)"></b>Losses</span></div>
+    </section>
+
+    <section class="panel">
+      <div class="heathead">
+        <div>
+          <h3>Weekday and hour heatmap</h3>
+          <p class="sub">Each square is one weekday and hour. Hover or tap a square for details.</p>
+        </div>
+        <div class="chips" id="heatMode"></div>
+      </div>
+      <div class="heatwrap"><div class="heat" id="heat" role="group" aria-label="Heatmap of results by weekday and hour"></div></div>
+      <div class="heatread" id="heatReadout" aria-live="polite"></div>
+      <div class="heatfoot"><div class="legend" id="heatLegend"></div></div>
+      <p class="note" id="heatNote"></p>
+    </section>
+
+    <section class="panel">
+      <h3>Win rate by day of the week</h3>
+      <p class="sub">Same games, grouped by weekday.</p>
+      <div class="week" id="week"></div>
+    </section>
+
+    <div class="foot" id="foot"></div>
+  </main>
+
+  <section class="about" id="about" aria-labelledby="aboutTitle">
+    <h2 id="aboutTitle">About Chess by Hour</h2>
+    <p>Chess by Hour is a free tool that shows when a Chess.com player wins and loses the most. Type a username and it reads that player's public games, groups them by the hour of the day and the day of the week they finished, and draws the pattern as a 24-hour dial, a weekday-by-hour heatmap and simple charts. It is built for players who suspect they play worse late at night, or better on weekend mornings, and want to check.</p>
+    <div class="cols">
+      <div>
+        <h3>How it works</h3>
+        <ol>
+          <li>Enter a Chess.com username and choose a period, from the last 3 months to all games.</li>
+          <li>Your browser downloads that player's public game archive from Chess.com's public API.</li>
+          <li>Each game is placed in the hour it ended, in the time zone you pick. Wins, draws and losses are counted for every hour and every weekday.</li>
+          <li>The best and toughest hours are ranked by win rate, using only hours with at least the minimum number of games you set.</li>
+        </ol>
+      </div>
+      <div>
+        <h3>Good to know</h3>
+        <ul>
+          <li>Hours are when a game ended, not when it started.</li>
+          <li>Only standard chess games count. Variants are skipped, and draws count as not won.</li>
+          <li>Small samples are noisy. A 70% win rate over 10 games can easily be luck, which is why hours with too few games are faded.</li>
+          <li>Chess.com does not publish a player's time zone, so you choose it. When the player's country has a single time zone, the page offers it.</li>
+          <li>Only public data is used, so private or closed accounts cannot be analyzed.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Your data</h3>
+        <p>Everything is calculated in your browser. The usernames you enter and the games they load are not sent to or stored by this site. See the <a href="privacy.html">privacy policy</a> for the details.</p>
+        <p>Questions or ideas? Use the <a href="contact.html">contact page</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="sitefoot">
+    <p>© <span id="yr">2026</span> Chess by Hour</p>
+    <nav aria-label="Site">
+      <a href="#about">About</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <p class="fine">Not affiliated with or endorsed by Chess.com. Game data comes from Chess.com's public API.</p>
+  </footer>
+</div>
+
+<dialog id="shareDlg" aria-labelledby="shareTitle">
+  <div class="shin">
+    <div class="shhead">
+      <h3 id="shareTitle">Share your results</h3>
+      <button type="button" class="btn" id="shareClose">Close</button>
+    </div>
+    <div class="shbody">
+      <canvas id="shareCanvas" width="1080" height="1350" aria-label="Preview of the image you can share"></canvas>
+      <div>
+        <div class="shbtns">
+          <button type="button" class="btn primary" id="shNative" hidden>Share…</button>
+          <button type="button" class="btn" id="shX">Post on X</button>
+          <button type="button" class="btn" id="shIG">Instagram</button>
+          <button type="button" class="btn" id="shWA">WhatsApp</button>
+          <button type="button" class="btn" id="shCopy">Copy image</button>
+          <button type="button" class="btn" id="shDl">Download image</button>
+        </div>
+        <p id="shareMsg" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const pad = h => String(h).padStart(2, '0');
+  const range = h => `${pad(h)}:00–${pad(h)}:59`;
+  const pct = x => Math.round(x * 100) + '%';
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  // Result strings from the Chess.com API that count as a loss. Wins are "win"; everything else is a draw.
+  const LOSS = new Set(['checkmated','resigned','timeout','abandoned','lose']);
+  const classify = r => r === 'win' ? 'w' : LOSS.has(r) ? 'l' : 'd';
+
+  /* ---------- Time zones ---------- */
+  const BROWSER_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (e) { return 'UTC'; } })();
+  const FALLBACK_ZONES = ['Africa/Cairo','Africa/Casablanca','Africa/Johannesburg','Africa/Lagos','America/Chicago','America/Denver','America/Los_Angeles','America/Mexico_City','America/New_York','America/Sao_Paulo','America/Toronto','Asia/Dhaka','Asia/Dubai','Asia/Hong_Kong','Asia/Karachi','Asia/Kolkata','Asia/Manila','Asia/Seoul','Asia/Shanghai','Asia/Singapore','Asia/Tokyo','Australia/Sydney','Europe/Berlin','Europe/Istanbul','Europe/London','Europe/Madrid','Europe/Moscow','Europe/Paris','Pacific/Auckland'];
+  const WD_INDEX = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+  const zoneFmts = {};
+
+  // Hour of day (0-23) and weekday (Monday = 0) of a Unix timestamp in the given IANA time zone
+  function hourDow(tz, t) {
+    const f = zoneFmts[tz] || (zoneFmts[tz] = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', hour: '2-digit', weekday: 'short' }));
+    let h = 0, wd = 0;
+    for (const p of f.formatToParts(t * 1000)) {
+      if (p.type === 'hour') h = (+p.value) % 24;
+      else if (p.type === 'weekday') wd = WD_INDEX[p.value] ?? 0;
+    }
+    return { h, wd };
+  }
+
+  // Current UTC offset of a zone, like "UTC+9"
+  function offsetLabel(tz) {
+    try {
+      const part = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' }).formatToParts(new Date()).find(x => x.type === 'timeZoneName');
+      return part ? part.value.replace('GMT', 'UTC') : '';
+    } catch (e) { return ''; }
+  }
+
+  let ZONE_SET = new Set();
+
+  // Time zones that Intl lists for a country code (empty when the browser can't tell)
+  function zonesForCountry(code) {
+    try {
+      const loc = new Intl.Locale('und-' + code);
+      const z = typeof loc.getTimeZones === 'function' ? loc.getTimeZones() : loc.timeZones;
+      return Array.isArray(z) ? z : [];
+    } catch (e) { return []; }
+  }
+
+  // Country name from the code, using the browser first and Chess.com's country endpoint as a fallback
+  async function countryName(code) {
+    try {
+      const n = new Intl.DisplayNames(['en'], { type: 'region' }).of(code);
+      if (n && n !== code) return n;
+    } catch (e) { /* not an ISO region code */ }
+    try {
+      const c = await getJSON(`https://api.chess.com/pub/country/${encodeURIComponent(code)}`, 1);
+      if (c && c.name) return c.name;
+    } catch (e) { /* ignore */ }
+    return '';
+  }
+
+  // Public profile: name, title, avatar, city and country. Never throws, because it is optional.
+  async function loadProfile(user) {
+    try {
+      const raw = await getJSON(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}`, 2);
+      const code = raw.country ? String(raw.country).split('/').pop().toUpperCase() : '';
+      return {
+        username: raw.username || user,
+        name: raw.name || '',
+        title: raw.title || '',
+        avatar: /^https:\/\//.test(raw.avatar || '') ? raw.avatar : '',
+        location: String(raw.location || '').trim(),
+        countryName: code ? await countryName(code) : '',
+        zones: code ? zonesForCountry(code) : []
+      };
+    } catch (e) { return null; }
+  }
+
+  function zoneName(tz) {
+    if (tz === 'UTC') return 'UTC';
+    const off = offsetLabel(tz);
+    return tz.replace(/_/g, ' ') + (off ? ' (' + off + ')' : '');
+  }
+
+  function buildTzSelect() {
+    let zones;
+    try { zones = Intl.supportedValuesOf('timeZone'); } catch (e) { zones = FALLBACK_ZONES; }
+    zones = zones.filter(z => z !== 'UTC');
+    ZONE_SET = new Set([...zones, 'UTC', BROWSER_TZ]);
+    const groups = {};
+    for (const z of zones) {
+      const region = z.includes('/') ? z.split('/')[0] : 'Other';
+      (groups[region] = groups[region] || []).push(z);
+    }
+    let html = `<optgroup label="Suggested"><option value="${esc(BROWSER_TZ)}">Your time zone (${esc(BROWSER_TZ.replace(/_/g, ' '))})</option><option value="UTC">UTC</option></optgroup>`;
+    for (const region of Object.keys(groups).sort()) {
+      html += `<optgroup label="${esc(region)}">` + groups[region].map(z => {
+        const name = z.includes('/') ? z.slice(z.indexOf('/') + 1) : z;
+        const off = offsetLabel(z);
+        return `<option value="${esc(z)}">${esc(name.replace(/_/g, ' '))}${off ? ' (' + off + ')' : ''}</option>`;
+      }).join('') + '</optgroup>';
+    }
+    $('#tz').innerHTML = html;
+    $('#tz').value = BROWSER_TZ;
+  }
+
+  const state = { games: [], user: '', tc: 'all', tz: BROWSER_TZ, min: 10, hour: null, heat: 'rate', failed: 0, cache: null };
+  buildTzSelect();
+
+  /* ---------- Data loading ---------- */
+  async function getJSON(url, tries = 4) {
+    for (let i = 0; i < tries; i++) {
+      const res = await fetch(url);
+      if (res.status === 429) { await sleep(1200 * (i + 1)); continue; }
+      if (res.status === 404) throw Object.assign(new Error('notfound'), { code: 404 });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }
+    throw Object.assign(new Error('ratelimit'), { code: 429 });
+  }
+
+  function setStatus(msg, progress, isErr) {
+    const s = $('#status');
+    s.className = isErr ? 'err' : '';
+    s.innerHTML = esc(msg) + (progress != null ? `<div class="prog"><i style="width:${Math.round(progress * 100)}%"></i></div>` : '');
+  }
+
+  async function load(user, months) {
+    setStatus(`Looking up ${user}…`, 0);
+    const [idx, profile] = await Promise.all([
+      getJSON(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`),
+      loadProfile(user)
+    ]);
+    let urls = idx.archives || [];
+    if (months > 0) urls = urls.slice(-months);
+    if (!urls.length) throw Object.assign(new Error('nogames'), { code: 'nogames' });
+
+    const me = user.toLowerCase();
+    const games = [];
+    const queue = urls.slice().reverse();
+    let done = 0; state.failed = 0;
+
+    async function worker() {
+      while (queue.length) {
+        const url = queue.shift();
+        try {
+          const data = await getJSON(url);
+          for (const g of data.games || []) {
+            if (g.rules !== 'chess' || !g.end_time) continue;
+            const side = (g.white && g.white.username.toLowerCase() === me) ? g.white
+                       : (g.black && g.black.username.toLowerCase() === me) ? g.black : null;
+            if (!side) continue;
+            games.push({ t: g.end_time, r: classify(side.result), tc: g.time_class || 'other' });
+          }
+        } catch (e) { state.failed++; }
+        done++;
+        setStatus(`Reading month ${done} of ${urls.length} · ${games.length.toLocaleString()} games so far`, done / urls.length);
+      }
+    }
+    await Promise.all([worker(), worker(), worker()]);
+    return { games, profile };
+  }
+
+  /* ---------- Stats ---------- */
+  function compute() {
+    const blank = () => ({ w: 0, d: 0, l: 0, n: 0 });
+    const hrs = Array.from({ length: 24 }, blank);
+    const days = Array.from({ length: 7 }, blank);
+    const grid = Array.from({ length: 7 }, () => Array.from({ length: 24 }, blank));
+    const tot = blank();
+    for (const g of state.games) {
+      if (state.tc !== 'all' && g.tc !== state.tc) continue;
+      // Convert once per zone and remember it on the game, so filter changes stay fast
+      if (g.z !== state.tz) { const p = hourDow(state.tz, g.t); g.z = state.tz; g.h = p.h; g.wd = p.wd; }
+      for (const o of [hrs[g.h], days[g.wd], grid[g.wd][g.h], tot]) { o[g.r]++; o.n++; }
+    }
+    return { hrs, days, grid, tot };
+  }
+
+  function tone(wr, base) {
+    const d = wr - base;
+    const p = Math.max(14, Math.min(100, Math.round(Math.abs(d) / 0.2 * 100)));
+    return `color-mix(in srgb, ${d >= 0 ? 'var(--win)' : 'var(--loss)'} ${p}%, var(--mid))`;
+  }
+
+  /* ---------- Rendering ---------- */
+  function sector(cx, cy, r0, r1, a0, a1) {
+    const rad = a => a * Math.PI / 180;
+    const P = (r, a) => [(cx + r * Math.cos(rad(a))).toFixed(2), (cy + r * Math.sin(rad(a))).toFixed(2)];
+    const [x0, y0] = P(r1, a0), [x1, y1] = P(r1, a1), [x2, y2] = P(r0, a1), [x3, y3] = P(r0, a0);
+    return `M${x0} ${y0}A${r1} ${r1} 0 0 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 0 0 ${x3} ${y3}Z`;
+  }
+
+  /* ---------- Persona: a shareable label for when someone plays ---------- */
+  const WINDOWS = [
+    { name: 'Early bird',          from: 5,  to: 8 },
+    { name: 'Morning grinder',     from: 9,  to: 11 },
+    { name: 'Afternoon tactician', from: 12, to: 16 },
+    { name: 'Prime-time player',   from: 17, to: 21 },
+    { name: 'Night owl',           from: 22, to: 4 }   // wraps past midnight
+  ];
+  const inWindow = (h, w) => w.from <= w.to ? (h >= w.from && h <= w.to) : (h >= w.from || h <= w.to);
+  const windowLen = w => w.from <= w.to ? w.to - w.from + 1 : 24 - w.from + w.to + 1;
+
+  function computePersona(hrs, days, tot) {
+    if (tot.n < 30) return null; // too few games for a label to mean anything
+    let best = null;
+    for (const w of WINDOWS) {
+      const n = hrs.reduce((sum, x, h) => sum + (inWindow(h, w) ? x.n : 0), 0);
+      const share = n / tot.n;
+      const ratio = share / (windowLen(w) / 24); // 1.0 means games are spread evenly over the day
+      if (!best || ratio > best.ratio) best = { w, share, ratio };
+    }
+    const spread = best.ratio < 1.35;
+    const weekend = (days[5].n + days[6].n) / tot.n; // an even spread would be about 29%
+    return {
+      name: spread ? 'Around-the-clock player' : best.w.name,
+      detail: spread
+        ? 'Your games are spread across the whole day.'
+        : `${pct(best.share)} of your games end between ${pad(best.w.from)}:00 and ${pad(best.w.to)}:59.`,
+      tag: weekend >= 0.45 ? 'Weekend warrior' : weekend <= 0.15 ? 'Weekday grinder' : ''
+    };
+  }
+
+  const PIN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+
+  function renderProfile() {
+    const p = state.profile, box = $('#player');
+    if (!p) { box.hidden = true; return; }
+    box.hidden = false;
+    const uname = p.username || state.user;
+    $('#plAvatar').innerHTML = esc(uname.charAt(0).toUpperCase()) +
+      (p.avatar ? `<img src="${esc(p.avatar)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : '');
+    $('#plName').innerHTML = (p.title ? `<span class="ttl">${esc(p.title)}</span>` : '') +
+      `<span>${esc(uname)}</span>` + (p.name ? `<small>${esc(p.name)}</small>` : '');
+
+    // "Casablanca, Morocco", without repeating the country when the city field already has it
+    let place = [p.location, p.countryName].filter(Boolean).join(', ');
+    if (p.location && p.countryName && p.location.toLowerCase().includes(p.countryName.toLowerCase())) place = p.location;
+    $('#plLoc').innerHTML = place ? `${PIN}<span>${esc(place)}</span>` : '';
+
+    // Offer their time zone only when the country has exactly one and it isn't already selected
+    const z = p.zones && p.zones.length === 1 ? p.zones[0] : '';
+    $('#plHint').innerHTML = z && z !== state.tz && ZONE_SET.has(z)
+      ? `<span>Their country uses ${esc(zoneName(z))}.</span><button type="button" class="btn" data-tz="${esc(z)}">Show hours in it</button>`
+      : '';
+  }
+
+  function render(fresh = false) {
+    const { hrs, days, grid, tot } = compute();
+    state.cache = { hrs, days, grid, tot };
+    $('#shareBtn').disabled = !tot.n;
+    renderProfile();
+
+    // Time-control chips (based on all loaded games)
+    const counts = {};
+    for (const g of state.games) counts[g.tc] = (counts[g.tc] || 0) + 1;
+    const order = ['bullet', 'blitz', 'rapid', 'daily'].filter(k => counts[k]);
+    Object.keys(counts).forEach(k => { if (!order.includes(k) && k !== 'other') order.push(k); });
+    const chip = (k, label, n) => `<button type="button" class="chip" data-tc="${k}" aria-pressed="${state.tc === k}">${label}<small>${n.toLocaleString()}</small></button>`;
+    $('#chips').innerHTML = chip('all', 'All', state.games.length) + order.map(k => chip(k, k[0].toUpperCase() + k.slice(1), counts[k])).join('');
+
+    if (!tot.n) {
+      $('#headline').textContent = 'No games match these filters.';
+      $('#dial').innerHTML = ''; $('#bars').innerHTML = ''; $('#blabels').innerHTML = '';
+      $('#persona').innerHTML = ''; state.cache.persona = null;
+      $('#heat').innerHTML = ''; $('#heatReadout').textContent = ''; $('#heatNote').textContent = ''; $('#heatLegend').innerHTML = ''; $('#heatMode').innerHTML = '';
+      $('#week').innerHTML = ''; $('#best').innerHTML = ''; $('#worst').innerHTML = '';
+      $('#readout').innerHTML = ''; $('#rankNote').textContent = 'Pick another time control.'; $('#foot').innerHTML = '';
+      return;
+    }
+
+    const overall = tot.w / tot.n;
+    const maxN = Math.max(...hrs.map(h => h.n));
+
+    // Ranking (only hours with enough games)
+    const q = hrs.map((s, h) => ({ h, ...s, wr: s.n ? s.w / s.n : 0 })).filter(x => x.n >= state.min);
+    q.sort((a, b) => b.wr - a.wr || b.n - a.n);
+    const k = Math.min(3, Math.floor(q.length / 2));
+    const best = q.slice(0, k);
+    const worst = q.slice(q.length - k).reverse();
+    const mostLosses = hrs.reduce((m, s, h) => s.l > hrs[m].l ? h : m, 0);
+    state.cache.rank = { best, worst, mostLosses, overall, maxN, k };
+
+    // Persona chips
+    const pe = computePersona(hrs, days, tot);
+    state.cache.persona = pe;
+    $('#persona').innerHTML = pe
+      ? `<span class="pchip">${esc(pe.name)}</span>${pe.tag ? `<span class="pchip alt">${esc(pe.tag)}</span>` : ''}<span class="pdet">${esc(pe.detail)}</span>`
+      : '';
+
+    // Headline
+    const u = esc(state.user);
+    if (k >= 1) {
+      $('#headline').innerHTML = `${u} wins most around <span class="hl-w">${pad(best[0].h)}:00</span> and loses most around <span class="hl-l">${pad(worst[0].h)}:00</span>.`;
+    } else {
+      $('#headline').textContent = `${state.user}: not enough games per hour to compare yet.`;
+    }
+
+    // Lists
+    const li = (x, cls) => `<li><button class="rk" data-h="${x.h}"><span>${range(x.h)}</span><span class="meter"><i style="width:${Math.round(x.wr * 100)}%;background:var(--${cls})"></i></span><span class="n">${pct(x.wr)} · ${x.n}</span></button></li>`;
+    $('#best').innerHTML = best.map(x => li(x, 'win')).join('');
+    $('#worst').innerHTML = worst.map(x => li(x, 'loss')).join('');
+    $('#rankNote').textContent = k
+      ? `Ranked by win rate. Only hours with at least ${state.min} games are ranked. The most losses in a single hour: ${hrs[mostLosses].l} at ${range(mostLosses)}.`
+      : `Lower "Minimum games per hour" or choose a longer period.`;
+
+    // Dial
+    const cx = 210, cy = 210, r0 = 66, rMax = 170;
+    let svg = `<circle cx="${cx}" cy="${cy}" r="${r0 - 6}" fill="none" stroke="var(--line)"/>`;
+    for (let h = 0; h < 24; h++) {
+      const s = hrs[h];
+      const a0 = h * 15 - 90 + 0.9, a1 = (h + 1) * 15 - 90 - 0.9;
+      const len = s.n ? r0 + 6 + (s.n / maxN) * (rMax - r0 - 6) : 0;
+      const wr = s.n ? s.w / s.n : 0;
+      const label = `${range(h)}: ${s.n} games, ${s.n ? pct(wr) : 'no'} win rate`;
+      svg += `<g class="wedge" data-h="${h}" tabindex="0" role="button" aria-label="${label}">
+        <path class="track" d="${sector(cx, cy, r0, rMax, a0, a1)}"/>
+        ${s.n ? `<path class="datum${s.n < state.min ? ' thin' : ''}" style="--i:${h};fill:${tone(wr, overall)}" d="${sector(cx, cy, r0, len, a0, a1)}"/>` : ''}
+      </g>`;
+    }
+    for (let h = 0; h < 24; h += 3) {
+      const a = (h + 0.5) * 15 - 90, r = 190;
+      svg += `<text class="dlabel" x="${(cx + r * Math.cos(a * Math.PI / 180)).toFixed(1)}" y="${(cy + r * Math.sin(a * Math.PI / 180)).toFixed(1)}">${pad(h)}</text>`;
+    }
+    svg += `<text class="dbig" x="${cx}" y="${cy + 4}">${pct(overall)}</text>
+            <text class="dsub" x="${cx}" y="${cy + 24}">${tot.n.toLocaleString()} games</text>`;
+    const dial = $('#dial');
+    dial.innerHTML = svg;
+    dial.classList.toggle('enter', fresh);
+
+    // Bars
+    const mx = Math.max(1, ...hrs.map(s => Math.max(s.w, s.l)));
+    $('#bars').innerHTML = hrs.map((s, h) =>
+      `<button class="bcol" data-h="${h}" aria-label="${range(h)}: ${s.w} wins, ${s.l} losses"><span class="up" style="height:${(s.w / mx) * 50}%"></span><span class="dn" style="height:${(s.l / mx) * 50}%"></span></button>`).join('');
+    $('#blabels').innerHTML = hrs.map((_, h) => `<span class="${h % 3 === 0 ? 'show' : ''}">${pad(h)}</span>`).join('');
+
+    // Weekdays
+    $('#week').innerHTML = days.map((s, i) => {
+      const wr = s.n ? s.w / s.n : 0;
+      return `<div class="wd"><div class="dn2">${DAYS[i]}</div><div class="pc">${s.n ? pct(wr) : '–'}</div><div class="g">${s.n.toLocaleString()} games</div><div class="bar" style="background:${s.n ? tone(wr, overall) : 'var(--track)'};${s.n && s.n < state.min ? 'opacity:.45' : ''}"></div></div>`;
+    }).join('');
+
+    renderHeat(grid, overall);
+
+    // Footer notes
+    const tzName = zoneName(state.tz);
+    $('#foot').innerHTML =
+      `<p>Hours are when each game ended, in ${esc(tzName)}. Only standard chess games are counted; variants are skipped. Draws count as not won.</p>` +
+      `<p>Faded wedges have fewer than ${state.min} games, so treat them as noise. Data comes from Chess.com's public API. This site is not affiliated with Chess.com.</p>` +
+      (state.failed ? `<p>${state.failed} monthly archive${state.failed > 1 ? 's' : ''} could not be loaded, so the totals may be slightly low.</p>` : '');
+
+    // Default selection: best ranked hour, otherwise the busiest hour
+    if (state.hour === null) state.hour = best.length ? best[0].h : hrs.findIndex(s => s.n === maxN);
+    select(state.hour);
+  }
+
+  const DAYS_LONG = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  // Each weekday-hour square holds far fewer games than a whole hour, so it needs a lower threshold.
+  const cellMin = () => Math.max(3, Math.ceil(state.min / 3));
+
+  function renderHeat(grid, overall) {
+    const cm = cellMin();
+    const maxCell = Math.max(1, ...grid.flat().map(c => c.n));
+
+    let html = '<span></span>' + Array.from({ length: 24 }, (_, h) => `<span class="hlab">${h % 3 === 0 ? pad(h) : ''}</span>`).join('');
+    grid.forEach((row, d) => {
+      html += `<span class="hlab day">${DAYS[d]}</span>`;
+      row.forEach((c, h) => {
+        const wr = c.n ? c.w / c.n : 0;
+        let bg = 'var(--track)', thin = false;
+        if (c.n) {
+          if (state.heat === 'rate') { bg = tone(wr, overall); thin = c.n < cm; }
+          else bg = `color-mix(in srgb, var(--accent) ${Math.max(14, Math.round(c.n / maxCell * 100))}%, var(--track))`;
+        }
+        html += `<button class="hc${thin ? ' thin' : ''}" data-d="${d}" data-hh="${h}" style="background:${bg}" aria-label="${DAYS_LONG[d]} ${range(h)}: ${c.n} games${c.n ? ', ' + pct(wr) + ' win rate' : ''}"></button>`;
+      });
+    });
+    $('#heat').innerHTML = html;
+
+    $('#heatMode').innerHTML = [['rate', 'Win rate'], ['volume', 'Games played']]
+      .map(([k, l]) => `<button type="button" class="chip" data-mode="${k}" aria-pressed="${state.heat === k}">${l}</button>`).join('');
+    $('#heatLegend').innerHTML = state.heat === 'rate'
+      ? '<span>Loses more</span><span class="ramp"></span><span>Wins more</span>'
+      : '<span>Fewer games</span><span class="ramp vol"></span><span>More games</span>';
+
+    // Best and toughest slots among squares with enough games
+    const cells = [];
+    grid.forEach((row, d) => row.forEach((c, h) => { if (c.n >= cm) cells.push({ d, h, ...c, wr: c.w / c.n }); }));
+    cells.sort((a, b) => b.wr - a.wr || b.n - a.n);
+    const f = x => `${DAYS[x.d]} ${pad(x.h)}:00 (${pct(x.wr)} over ${x.n} games)`;
+    $('#heatNote').innerHTML = cells.length >= 2
+      ? `Best slot: <strong>${f(cells[0])}</strong>. Toughest slot: <strong>${f(cells[cells.length - 1])}</strong>. Only slots with at least ${cm} games are ranked${state.heat === 'rate' ? '; fainter squares have fewer' : ''}.`
+      : 'Not enough games per slot yet to rank them. Try a longer period or a wider time control.';
+
+    if (cells.length) showCell(cells[0].d, cells[0].h);
+    else $('#heatReadout').textContent = 'Hover or tap a square for details.';
+  }
+
+  function showCell(d, h) {
+    const c = state.cache.grid[d][h];
+    $('#heatReadout').textContent = c.n
+      ? `${DAYS_LONG[d]}, ${range(h)}: ${c.n} games · ${c.w} won · ${c.d} drawn · ${c.l} lost · ${pct(c.w / c.n)} win rate`
+      : `${DAYS_LONG[d]}, ${range(h)}: no games.`;
+    document.querySelectorAll('.hc').forEach(el => el.classList.toggle('sel', +el.dataset.d === d && +el.dataset.hh === h));
+  }
+
+  function select(h) {
+    state.hour = h;
+    const s = state.cache.hrs[h];
+    const wr = s.n ? s.w / s.n : 0;
+    $('#readout').innerHTML = s.n
+      ? `<div class="when">${range(h)}</div>
+         <div class="tally">${s.n} games · ${s.w} won · ${s.d} drawn · ${s.l} lost · ${pct(wr)} win rate</div>
+         <div class="wdl" aria-hidden="true"><i class="w" style="flex:${s.w}"></i><i class="d" style="flex:${s.d}"></i><i class="l" style="flex:${s.l}"></i></div>`
+      : `<div class="when">${range(h)}</div><div class="tally">No games at this hour.</div>`;
+    document.querySelectorAll('[data-h]').forEach(el => el.classList.toggle('sel', +el.dataset.h === h));
+  }
+
+  /* ---------- Events ---------- */
+  function pick(e) {
+    const t = e.target.closest('[data-h]');
+    if (t && state.cache) select(+t.dataset.h);
+  }
+  for (const sel of ['#dial', '#bars', '#best', '#worst']) {
+    const el = $(sel);
+    el.addEventListener('pointerover', pick);
+    el.addEventListener('click', pick);
+    el.addEventListener('focusin', pick);
+  }
+  $('#chips').addEventListener('click', e => {
+    const b = e.target.closest('[data-tc]');
+    if (!b) return;
+    state.tc = b.dataset.tc; state.hour = null; render();
+  });
+  function pickCell(e) {
+    const t = e.target.closest('.hc');
+    if (t && state.cache) showCell(+t.dataset.d, +t.dataset.hh);
+  }
+  for (const ev of ['pointerover', 'click', 'focusin']) $('#heat').addEventListener(ev, pickCell);
+  $('#heatMode').addEventListener('click', e => {
+    const b = e.target.closest('[data-mode]');
+    if (!b) return;
+    state.heat = b.dataset.mode; render();
+  });
+  $('#plHint').addEventListener('click', e => {
+    const b = e.target.closest('[data-tz]');
+    if (!b) return;
+    state.tz = b.dataset.tz; $('#tz').value = state.tz; state.hour = null; render();
+  });
+  $('#tz').addEventListener('change', e => { state.tz = e.target.value; state.hour = null; render(); });
+  $('#min').addEventListener('change', e => { state.min = +e.target.value; state.hour = null; render(); });
+
+  /* ---------- Share ---------- */
+  const SITE = { name: 'Chess by Hour', domain: 'chessbyhour.com', url: 'https://chessbyhour.com/' };
+  const CARD = { W: 1080, H: 1350, bg: '#0f1720', ink: '#e6edf3', muted: '#93a3b3', win: '#45c495', loss: '#e0708f', mid: '#3a4957', track: '#1c2935', check: '#16222c', check2: '#213040', band: '#121b24', accent: '#d9a940' };
+  const hexRgb = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+  const mixHex = (a, b, p) => { const A = hexRgb(a), B = hexRgb(b); return `rgb(${A.map((v, i) => Math.round(v * p + B[i] * (1 - p))).join(',')})`; };
+  const cardTone = (wr, base) => { const d = wr - base; return mixHex(d >= 0 ? CARD.win : CARD.loss, CARD.mid, Math.max(0.14, Math.min(1, Math.abs(d) / 0.2))); };
+
+  function wedgePath(ctx, cx, cy, r0, r1, h) {
+    const a0 = (h * 15 - 90 + 0.9) * Math.PI / 180, a1 = ((h + 1) * 15 - 90 - 0.9) * Math.PI / 180;
+    ctx.beginPath(); ctx.arc(cx, cy, r1, a0, a1); ctx.arc(cx, cy, r0, a1, a0, true); ctx.closePath();
+  }
+
+  function roundRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.arc(x + w - r, y + r, r, -Math.PI / 2, 0);
+    ctx.lineTo(x + w, y + h - r); ctx.arc(x + w - r, y + h - r, r, 0, Math.PI / 2);
+    ctx.lineTo(x + r, y + h); ctx.arc(x + r, y + h - r, r, Math.PI / 2, Math.PI);
+    ctx.lineTo(x, y + r); ctx.arc(x + r, y + r, r, Math.PI, Math.PI * 1.5); ctx.closePath();
+  }
+
+  async function drawCard(cv) {
+    const { W, H } = CARD, pad = 72;
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+    try {
+      await Promise.all([
+        document.fonts.load('700 84px "Bricolage Grotesque"'),
+        document.fonts.load('500 30px Figtree'),
+        document.fonts.load('600 30px Figtree')
+      ]);
+    } catch (e) { /* system fonts are fine as a fallback */ }
+    const HEAD = '"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif';
+    const BODY = 'Figtree,"Avenir Next","Segoe UI",system-ui,sans-serif';
+    const { hrs, tot, rank: r } = state.cache;
+
+    // Background, with a solid footer band that carries the call to action
+    ctx.fillStyle = CARD.bg; ctx.fillRect(0, 0, W, H);
+    const bandH = 80, bandY = H - bandH;
+    ctx.fillStyle = CARD.band; ctx.fillRect(0, bandY, W, bandH);
+    ctx.fillStyle = CARD.accent; ctx.fillRect(0, bandY, W, 3);
+    const cta = 'Find your own hours at ';
+    ctx.font = `500 32px ${BODY}`; const ctaW = ctx.measureText(cta).width;
+    ctx.font = `700 40px ${HEAD}`; const domW = ctx.measureText(SITE.domain).width;
+    const ctaX = (W - ctaW - domW) / 2, ctaY = bandY + 3 + (bandH - 3) / 2;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = CARD.muted; ctx.font = `500 32px ${BODY}`; ctx.fillText(cta, ctaX, ctaY);
+    ctx.fillStyle = CARD.accent; ctx.font = `700 40px ${HEAD}`; ctx.fillText(SITE.domain, ctaX + ctaW, ctaY);
+    ctx.textBaseline = 'alphabetic';
+
+    // Header: site name, optional host, username, summary line
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left'; ctx.fillStyle = CARD.muted; ctx.font = `600 30px ${BODY}`;
+    ctx.fillText(SITE.name, pad, 118);
+    ctx.textAlign = 'left'; ctx.fillStyle = CARD.ink;
+    let fs = 96; ctx.font = `700 ${fs}px ${HEAD}`;
+    while (ctx.measureText(state.user).width > W - 2 * pad && fs > 40) { fs -= 4; ctx.font = `700 ${fs}px ${HEAD}`; }
+    ctx.fillText(state.user, pad, 214);
+
+    // Persona label: the line people actually share, with an optional secondary tag
+    const pe = state.cache.persona;
+    if (pe) {
+      ctx.font = `700 50px ${HEAD}`; ctx.fillStyle = CARD.accent;
+      ctx.fillText(pe.name, pad, 290);
+      if (pe.tag) {
+        const nameW = ctx.measureText(pe.name).width;
+        ctx.font = `600 26px ${BODY}`;
+        const pw = ctx.measureText(pe.tag).width + 40, px = pad + nameW + 28, py = 250;
+        ctx.strokeStyle = CARD.muted; ctx.lineWidth = 2;
+        roundRectPath(ctx, px, py, pw, 46, 23); ctx.stroke();
+        ctx.fillStyle = CARD.ink; ctx.textBaseline = 'middle';
+        ctx.fillText(pe.tag, px + 20, py + 24);
+        ctx.textBaseline = 'alphabetic';
+      }
+    }
+    const tcWord = state.tc === 'all' ? '' : state.tc + ' ';
+    const period = state.months > 0 ? `last ${state.months} months` : 'all time';
+    ctx.fillStyle = CARD.muted; ctx.font = `500 30px ${BODY}`;
+    ctx.fillText(`${tot.n.toLocaleString()} ${tcWord}games, ${period}`, pad, pe ? 338 : 290);
+    ctx.font = `500 26px ${BODY}`;
+    ctx.fillText(`Hours in ${zoneName(state.tz)}`, pad, pe ? 376 : 328);
+
+    // The 24-hour dial
+    const cx = W / 2, cy = 730, r0 = 100, rMax = 280;
+    for (let h = 0; h < 24; h++) {
+      const s = hrs[h];
+      wedgePath(ctx, cx, cy, r0, rMax, h); ctx.fillStyle = CARD.track; ctx.fill();
+      if (s.n) {
+        const len = r0 + 8 + (s.n / r.maxN) * (rMax - r0 - 8);
+        wedgePath(ctx, cx, cy, r0, len, h);
+        ctx.globalAlpha = s.n < state.min ? 0.4 : 1;
+        ctx.fillStyle = cardTone(s.w / s.n, r.overall); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+    if (r.k >= 1) {
+      ctx.lineWidth = 5; ctx.lineJoin = 'round';
+      wedgePath(ctx, cx, cy, r0, rMax, r.best[0].h); ctx.strokeStyle = CARD.win; ctx.stroke();
+      wedgePath(ctx, cx, cy, r0, rMax, r.worst[0].h); ctx.strokeStyle = CARD.loss; ctx.stroke();
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = CARD.muted; ctx.font = `500 26px ${BODY}`;
+    for (let h = 0; h < 24; h += 3) {
+      const a = (h + 0.5) * 15 - 90, rl = 316;
+      ctx.fillText(pad2(h), cx + rl * Math.cos(a * Math.PI / 180), cy + rl * Math.sin(a * Math.PI / 180));
+    }
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = CARD.ink; ctx.font = `700 78px ${HEAD}`; ctx.fillText(pct(r.overall), cx, cy + 20);
+    ctx.fillStyle = CARD.muted; ctx.font = `500 26px ${BODY}`; ctx.fillText('win rate', cx, cy + 58);
+
+    // Two headline stats under the dial
+    let A, B;
+    if (r.k >= 1) {
+      A = { label: 'Best hour', h: r.best[0].h, detail: `${pct(r.best[0].wr)} wins in ${r.best[0].n} games`, color: CARD.win };
+      B = { label: 'Toughest hour', h: r.worst[0].h, detail: `${pct(r.worst[0].wr)} wins in ${r.worst[0].n} games`, color: CARD.loss };
+    } else {
+      const busy = hrs.findIndex(s => s.n === r.maxN);
+      A = { label: 'Busiest hour', h: busy, detail: `${hrs[busy].n} games`, color: CARD.accent };
+      B = { label: 'Most losses', h: r.mostLosses, detail: `${hrs[r.mostLosses].l} losses`, color: CARD.loss };
+    }
+    [[A, pad], [B, W / 2 + 24]].forEach(([s, x]) => {
+      ctx.fillStyle = s.color; ctx.fillRect(x, 1094, 8, 148);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = CARD.muted; ctx.font = `600 28px ${BODY}`; ctx.fillText(s.label, x + 28, 1124);
+      ctx.fillStyle = CARD.ink; ctx.font = `700 76px ${HEAD}`; ctx.fillText(`${pad2(s.h)}:00`, x + 28, 1200);
+      ctx.fillStyle = CARD.muted; ctx.font = `500 28px ${BODY}`; ctx.fillText(s.detail, x + 28, 1242);
+    });
+  }
+
+  const pad2 = pad;
+  const dlg = $('#shareDlg');
+  const sh = { blob: null, file: null, text: '', url: '', native: false };
+  const shMsg = m => { $('#shareMsg').textContent = m; };
+  const shBusy = b => dlg.querySelectorAll('.shbtns .btn').forEach(x => { x.disabled = b; });
+
+  function shareInfo() {
+    const r = state.cache.rank;
+    const pe = state.cache.persona;
+    const lead = pe ? `Chess persona: ${pe.name}. ` : '';
+    const text = lead + (r.k >= 1
+      ? `${state.user} wins most around ${pad(r.best[0].h)}:00 (${pct(r.best[0].wr)}) and loses most around ${pad(r.worst[0].h)}:00 (${pct(r.worst[0].wr)}) on Chess.com. When do you win?`
+      : `Chess by Hour results for ${state.user} on Chess.com. When do you win?`);
+    const live = /^https?:$/.test(location.protocol) && !/^(localhost|127\.|\[::1\])/.test(location.hostname);
+    const url = (live ? location.origin + location.pathname : SITE.url) + '#' + encodeURIComponent(state.user);
+    return { text, url };
+  }
+
+  async function openShare() {
+    if (!state.cache || !state.cache.rank) return;
+    shBusy(true); shMsg('Making your image…');
+    dlg.showModal();
+    const cv = $('#shareCanvas');
+    await drawCard(cv);
+    sh.blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+    Object.assign(sh, shareInfo());
+    sh.file = new File([sh.blob], `chess-by-hour-${state.user}.png`, { type: 'image/png' });
+    sh.native = !!(navigator.canShare && navigator.canShare({ files: [sh.file] }));
+    $('#shNative').hidden = !sh.native;
+    shBusy(false); shMsg('');
+  }
+
+  function download() {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(sh.blob);
+    a.download = sh.file.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+  // Must be called straight from a click so the browser allows clipboard access
+  function copyImage() {
+    if (!navigator.clipboard || !window.ClipboardItem) return Promise.resolve(false);
+    return navigator.clipboard.write([new ClipboardItem({ 'image/png': sh.blob })]).then(() => true, () => false);
+  }
+  const nativeShare = () => navigator.share({ files: [sh.file], title: 'Chess by Hour', text: sh.text + (sh.url ? ' ' + sh.url : '') }).catch(() => {});
+
+  $('#shareBtn').addEventListener('click', openShare);
+  $('#shareClose').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+  $('#shNative').addEventListener('click', nativeShare);
+  $('#shDl').addEventListener('click', () => { download(); shMsg('Image saved.'); });
+  $('#shCopy').addEventListener('click', async () => {
+    shMsg((await copyImage()) ? 'Image copied. Paste it into your post or message.' : "This browser can't copy images. Use Download image instead.");
+  });
+  $('#shIG').addEventListener('click', () => {
+    if (sh.native) { nativeShare(); return; }
+    download();
+    shMsg('Image saved. Open Instagram and upload it as a post or story.');
+  });
+  $('#shX').addEventListener('click', () => {
+    const copied = copyImage();
+    const q = 'text=' + encodeURIComponent(sh.text) + (sh.url ? '&url=' + encodeURIComponent(sh.url) : '');
+    window.open('https://x.com/intent/post?' + q, '_blank', 'noopener');
+    copied.then(ok => shMsg(ok ? 'Image copied. Paste it into your post with Ctrl+V or Cmd+V.' : 'X cannot attach images automatically. Download the image and add it to your post.'));
+  });
+  $('#shWA').addEventListener('click', () => {
+    window.open('https://wa.me/?text=' + encodeURIComponent(sh.text + (sh.url ? ' ' + sh.url : '')), '_blank', 'noopener');
+    shMsg('WhatsApp cannot attach the image automatically. Download or copy it and add it to your message.');
+  });
+
+  function errorMessage(e) {
+    if (e.code === 404) return 'No Chess.com player with that username. Check the spelling and try again.';
+    if (e.code === 429) return 'Chess.com is limiting requests right now. Wait a minute and try again.';
+    if (e.code === 'nogames') return 'This player has no games in the selected period. Try a longer period.';
+    return "Couldn't reach Chess.com. Check your connection and try again.";
+  }
+
+  async function run() {
+    const user = $('#u').value.trim().replace(/^@/, '');
+    if (!/^[A-Za-z0-9_-]{2,25}$/.test(user)) {
+      setStatus('Enter a valid Chess.com username: letters, numbers, hyphens and underscores only.', null, true);
+      return;
+    }
+    $('#go').disabled = true;
+    document.body.classList.add('compact');
+    $('#results').hidden = true;
+    try {
+      const months = +$('#months').value;
+      const { games, profile } = await load(user, months);
+      if (!games.length) throw Object.assign(new Error('nogames'), { code: 'nogames' });
+      Object.assign(state, { games, profile, user: (profile && profile.username) || user, months, tc: 'all', hour: null });
+      setStatus('');
+      $('#results').hidden = false;
+      render(true);
+      history.replaceState(null, '', '#' + encodeURIComponent(user));
+    } catch (e) {
+      setStatus(errorMessage(e), null, true);
+    } finally {
+      $('#go').disabled = false;
+    }
+  }
+
+  $('#f').addEventListener('submit', e => { e.preventDefault(); run(); });
+
+  $('#yr').textContent = new Date().getFullYear();
+
+  // Support links like index.html#hikaru
+  const fromHash = decodeURIComponent(location.hash.slice(1));
+  if (fromHash && fromHash !== 'about') { $('#u').value = fromHash; run(); }
+})();
+</script>
+</body>
+</html>
