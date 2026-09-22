@@ -69,6 +69,8 @@ input{font-size:1.1rem;width:100%}
 .intro{display:grid;grid-template-rows:1fr;transition:grid-template-rows .5s cubic-bezier(.2,.7,.2,1),opacity .3s ease}
 .intro > div{min-height:0;overflow:hidden}
 .topbar{position:sticky;top:0;z-index:20;display:flow-root;border-bottom:1px solid transparent;transition:background-color .3s ease,border-color .3s ease}
+.btn.compare-top{background:var(--win);border-color:var(--win);color:#fff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.btn.compare-top:hover{background:color-mix(in srgb, var(--win) 82%, black);border-color:color-mix(in srgb, var(--win) 82%, black)}
 body.compact .intro{grid-template-rows:0fr;opacity:0}
 body.compact .topbar{background:var(--surface);border-bottom-color:var(--line)}
 body.compact .topbar form{margin:12px 0 0}
@@ -81,7 +83,13 @@ body.compact .topbar .field > span{position:absolute;width:1px;height:1px;overfl
 /* Results */
 #results{padding-bottom:64px}
 /* Player header */
-.player{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding-top:26px}
+.player-row{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;padding-top:26px}
+.cmp-btn-cell{display:grid;grid-template-rows:0fr;opacity:0;margin-left:auto;transform:scale(.92);transform-origin:right center;transition:grid-template-rows .35s cubic-bezier(.2,.7,.2,1),opacity .25s ease,transform .35s cubic-bezier(.2,.7,.2,1);pointer-events:none}
+.cmp-btn-cell.open{grid-template-rows:1fr;opacity:1;transform:scale(1);pointer-events:auto}
+.cmp-btn-cell>button{min-height:0;overflow:hidden}
+.cmp-btn-cell.open>button{min-height:44px}
+@media (max-width:620px){.cmp-btn-cell{margin-left:0;width:100%}}
+.player{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;flex:1;min-width:260px}
 .player[hidden]{display:none}
 .pl-avatar{position:relative;width:56px;height:56px;border-radius:50%;background:var(--track);overflow:hidden;flex:none;display:grid;place-items:center;font:700 1.4rem var(--head);color:var(--muted)}
 .pl-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -98,6 +106,32 @@ body.compact .topbar .field > span{position:absolute;width:1px;height:1px;overfl
 @media (max-width:620px){.pl-hint{margin-left:0;width:100%}}
 
 .controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;padding:22px 0;border-top:1px solid var(--line);margin-top:26px}
+.cmp-form-wrap{display:grid;grid-template-rows:0fr;opacity:0;transform:translateY(-8px);transition:grid-template-rows .35s cubic-bezier(.2,.7,.2,1),opacity .3s ease,transform .35s cubic-bezier(.2,.7,.2,1);pointer-events:none}
+.cmp-form-wrap.open{grid-template-rows:1fr;opacity:1;transform:translateY(0);pointer-events:auto}
+.cmp-form-wrap>form{min-height:0;overflow:hidden}
+.cmp-form{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:14px 8px 4px;border-top:1px solid var(--line)}
+#cmpStatus{min-height:20px;margin:4px 0 0;font-size:.9rem;color:var(--muted)}
+#cmpStatus.err{color:var(--loss);font-weight:500}
+.compare[hidden]{display:none}
+.cmp-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin:26px 0 24px}
+.cmp-head h2{font:700 clamp(1.3rem,3vw,1.8rem)/1.25 var(--head);letter-spacing:-.02em;margin:0;max-width:44ch}
+.cmp-head .btns{display:flex;gap:10px;flex-wrap:wrap}
+.cmp-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:8px 24px;align-items:start;margin-bottom:32px}
+@media (max-width:760px){.cmp-grid{grid-template-columns:1fr}.cmp-vs{margin:8px 0}}
+.cmp-vs{align-self:center;font:700 .95rem var(--head);color:var(--muted);padding:8px;text-align:center}
+.cmp-col{text-align:center;min-width:0}
+.cmp-tz{display:block;margin:2px 0 14px;font-size:.85rem;color:var(--muted)}
+.cmp-tz strong{color:var(--ink);font-weight:600}
+.cmp-tz select{font:inherit;font-size:.85rem;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:3px 8px;min-height:30px;max-width:100%}
+.cmp-dial{max-width:260px;margin:0 auto;display:block}
+.wedge.static{cursor:default}
+.cmp-name{font:700 1.2rem var(--head);letter-spacing:-.01em;overflow-wrap:break-word}
+.cmp-persona{margin-top:8px}
+.cmp-persona:empty{display:none}
+.cmp-stats{display:grid;gap:10px;text-align:left;margin-top:16px}
+.cmp-stat{border-left:4px solid var(--accent);padding:2px 0 2px 12px}
+.cmp-stat .lbl{font-size:.8rem;color:var(--muted)}
+.cmp-stat .val{font:700 1.25rem var(--head)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{font:inherit;font-size:.95rem;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:6px 15px;cursor:pointer}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -116,7 +150,7 @@ svg.dial{width:100%;height:auto;display:block;overflow:visible}
 .datum.thin{opacity:.38}
 .enter .datum{animation:grow .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i) * 24ms);transform-box:view-box;transform-origin:210px 210px}
 @keyframes grow{from{opacity:0;transform:scale(.72)}}
-@media (prefers-reduced-motion:reduce){.enter .datum{animation:none}.prog i,.intro,.topbar{transition:none}}
+@media (prefers-reduced-motion:reduce){.enter .datum{animation:none}.prog i,.intro,.topbar,.cmp-btn-cell,.cmp-form-wrap{transition:none}}
 .dlabel{font:600 11px var(--body);fill:var(--muted);text-anchor:middle;dominant-baseline:central}
 .dbig{font:700 46px var(--head);fill:var(--ink);text-anchor:middle;letter-spacing:-.02em}
 .dsub{font:500 12px var(--body);fill:var(--muted);text-anchor:middle}
@@ -250,14 +284,17 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
 
 <div class="wrap">
   <main id="results" hidden>
-    <section class="player" id="player" hidden aria-label="Player">
-      <div class="pl-avatar" id="plAvatar" aria-hidden="true"></div>
-      <div class="pl-main">
-        <div class="pl-name" id="plName"></div>
-        <div class="pl-loc" id="plLoc"></div>
-      </div>
-      <div class="pl-hint" id="plHint"></div>
-    </section>
+    <div class="player-row">
+      <section class="player" id="player" hidden aria-label="Player">
+        <div class="pl-avatar" id="plAvatar" aria-hidden="true"></div>
+        <div class="pl-main">
+          <div class="pl-name" id="plName"></div>
+          <div class="pl-loc" id="plLoc"></div>
+        </div>
+        <div class="pl-hint" id="plHint"></div>
+      </section>
+      <div class="cmp-btn-cell" id="cmpBtnCell"><button type="button" class="btn compare-top" id="compareBtn">Compare with a friend</button></div>
+    </div>
 
     <div class="controls">
       <div class="field"><span>Time control</span><div class="chips" id="chips"></div></div>
@@ -272,6 +309,19 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
         Share results
       </button>
     </div>
+
+    <div class="cmp-form-wrap" id="cmpFormWrap">
+      <form id="cmpForm" class="cmp-form" autocomplete="off">
+        <label class="field user"><span>Friend's Chess.com username</span>
+          <input id="cmpU" type="text" placeholder="e.g. hikaru" inputmode="text" autocapitalize="off" spellcheck="false" required>
+        </label>
+        <button class="primary" id="cmpGo" type="submit">Compare</button>
+        <button type="button" class="btn" id="cmpCancel">Cancel</button>
+      </form>
+    </div>
+    <div id="cmpStatus" role="status" aria-live="polite"></div>
+
+    <div id="soloView">
 
     <section class="hero" aria-label="Results by hour">
       <div class="dialbox">
@@ -317,6 +367,36 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       <h3>Win rate by day of the week</h3>
       <p class="sub">Same games, grouped by weekday.</p>
       <div class="week" id="week"></div>
+    </section>
+    </div>
+
+    <section class="compare" id="compareView" hidden aria-label="Comparison with a friend">
+      <div class="cmp-head">
+        <h2 id="cmpHeadline"></h2>
+        <div class="btns">
+          <button type="button" class="btn share" id="cmpShareBtn">Share comparison</button>
+          <button type="button" class="btn" id="cmpAgain">Compare with someone else</button>
+          <button type="button" class="btn" id="cmpExit">Back to solo view</button>
+        </div>
+      </div>
+      <div class="cmp-grid">
+        <div class="cmp-col">
+          <div class="cmp-name" id="cmpNameA"></div>
+          <div class="cmp-tz"><span>Time zone: <strong id="cmpTzA"></strong></span></div>
+          <svg class="dial cmp-dial" id="dialA" viewBox="0 0 420 420" role="img" aria-label="Your 24-hour dial"></svg>
+          <div class="cmp-persona" id="cmpPersonaA"></div>
+          <div class="cmp-stats" id="statsA"></div>
+        </div>
+        <div class="cmp-vs">VS</div>
+        <div class="cmp-col">
+          <div class="cmp-name" id="cmpNameB"></div>
+          <label class="cmp-tz"><span>Friend's time zone</span><select id="cmpTzB"></select></label>
+          <svg class="dial cmp-dial" id="dialB" viewBox="0 0 420 420" role="img" aria-label="Friend's 24-hour dial"></svg>
+          <div class="cmp-persona" id="cmpPersonaB"></div>
+          <div class="cmp-stats" id="statsB"></div>
+        </div>
+      </div>
+      <p class="note">The hour-by-hour breakdown, heatmap and weekday view stay single-player — this comparison focuses on the dial and each player's best and toughest hour.</p>
     </section>
 
     <div class="foot" id="foot"></div>
@@ -461,6 +541,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
         title: raw.title || '',
         avatar: /^https:\/\//.test(raw.avatar || '') ? raw.avatar : '',
         location: String(raw.location || '').trim(),
+        countryCode: code,
         countryName: code ? await countryName(code) : '',
         zones: code ? zonesForCountry(code) : []
       };
@@ -473,7 +554,26 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     return tz.replace(/_/g, ' ') + (off ? ' (' + off + ')' : '');
   }
 
-  function buildTzSelect() {
+  // Intl just returns a country's zones alphabetically, which picks oddities like America/Adak
+  // for the US or Europe's-edge Africa/Ceuta for Spain. For the countries where that's wrong,
+  // use the zone most of the population (and usually the capital) actually lives in instead.
+  const PRIMARY_ZONE = {
+    US: 'America/New_York', RU: 'Europe/Moscow', CA: 'America/Toronto', AU: 'Australia/Sydney',
+    MX: 'America/Mexico_City', BR: 'America/Sao_Paulo', MN: 'Asia/Ulaanbaatar', KI: 'Pacific/Tarawa',
+    FM: 'Pacific/Ponape', CL: 'America/Santiago', ES: 'Europe/Madrid', PT: 'Europe/Lisbon'
+  };
+
+  // Best-guess zone for a player's country: a curated primary zone where we have one, otherwise
+  // the first zone Intl lists — always just a default, and always overridable in the picker.
+  function autoZoneForProfile(profile) {
+    if (!profile) return '';
+    const primary = PRIMARY_ZONE[profile.countryCode];
+    if (primary && ZONE_SET.has(primary)) return primary;
+    const z = profile.zones && profile.zones[0];
+    return z && ZONE_SET.has(z) ? z : '';
+  }
+
+  function buildTzOptions() {
     let zones;
     try { zones = Intl.supportedValuesOf('timeZone'); } catch (e) { zones = FALLBACK_ZONES; }
     zones = zones.filter(z => z !== 'UTC');
@@ -491,11 +591,19 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
         return `<option value="${esc(z)}">${esc(name.replace(/_/g, ' '))}${off ? ' (' + off + ')' : ''}</option>`;
       }).join('') + '</optgroup>';
     }
+    return html;
+  }
+  function buildTzSelect() {
+    const html = buildTzOptions();
     $('#tz').innerHTML = html;
     $('#tz').value = BROWSER_TZ;
+    $('#cmpTzB').innerHTML = html;
+    $('#cmpTzB').value = BROWSER_TZ;
   }
 
   const state = { games: [], user: '', tc: 'all', tz: BROWSER_TZ, min: 10, hour: null, heat: 'rate', failed: 0, cache: null };
+  const stateB = { games: [], user: '', profile: null, tz: BROWSER_TZ, failed: 0, cache: null };
+  let compareOn = false;
   buildTzSelect();
 
   /* ---------- Data loading ---------- */
@@ -510,14 +618,14 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     throw Object.assign(new Error('ratelimit'), { code: 429 });
   }
 
-  function setStatus(msg, progress, isErr) {
-    const s = $('#status');
+  function setStatus(msg, progress, isErr, sel = '#status') {
+    const s = $(sel);
     s.className = isErr ? 'err' : '';
     s.innerHTML = esc(msg) + (progress != null ? `<div class="prog"><i style="width:${Math.round(progress * 100)}%"></i></div>` : '');
   }
 
-  async function load(user, months) {
-    setStatus(`Looking up ${user}…`, 0);
+  async function load(user, months, statusSel = '#status') {
+    setStatus(`Looking up ${user}…`, 0, false, statusSel);
     const [idx, profile] = await Promise.all([
       getJSON(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`),
       loadProfile(user)
@@ -529,7 +637,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     const me = user.toLowerCase();
     const games = [];
     const queue = urls.slice().reverse();
-    let done = 0; state.failed = 0;
+    let done = 0, failed = 0;
 
     async function worker() {
       while (queue.length) {
@@ -543,29 +651,43 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
             if (!side) continue;
             games.push({ t: g.end_time, r: classify(side.result), tc: g.time_class || 'other' });
           }
-        } catch (e) { state.failed++; }
+        } catch (e) { failed++; }
         done++;
-        setStatus(`Reading month ${done} of ${urls.length} · ${games.length.toLocaleString()} games so far`, done / urls.length);
+        setStatus(`Reading month ${done} of ${urls.length} · ${games.length.toLocaleString()} games so far`, done / urls.length, false, statusSel);
       }
     }
     await Promise.all([worker(), worker(), worker()]);
-    return { games, profile };
+    return { games, profile, failed };
   }
 
   /* ---------- Stats ---------- */
-  function compute() {
+  function computeFor(games, tc, tz) {
     const blank = () => ({ w: 0, d: 0, l: 0, n: 0 });
     const hrs = Array.from({ length: 24 }, blank);
     const days = Array.from({ length: 7 }, blank);
     const grid = Array.from({ length: 7 }, () => Array.from({ length: 24 }, blank));
     const tot = blank();
-    for (const g of state.games) {
-      if (state.tc !== 'all' && g.tc !== state.tc) continue;
+    for (const g of games) {
+      if (tc !== 'all' && g.tc !== tc) continue;
       // Convert once per zone and remember it on the game, so filter changes stay fast
-      if (g.z !== state.tz) { const p = hourDow(state.tz, g.t); g.z = state.tz; g.h = p.h; g.wd = p.wd; }
+      if (g.z !== tz) { const p = hourDow(tz, g.t); g.z = tz; g.h = p.h; g.wd = p.wd; }
       for (const o of [hrs[g.h], days[g.wd], grid[g.wd][g.h], tot]) { o[g.r]++; o.n++; }
     }
     return { hrs, days, grid, tot };
+  }
+  function compute() { return computeFor(state.games, state.tc, state.tz); }
+
+  // Ranks hours by win rate (only those with enough games); shared by the solo and compare views
+  function computeRank(hrs, tot, min) {
+    const overall = tot.n ? tot.w / tot.n : 0;
+    const maxN = Math.max(...hrs.map(h => h.n));
+    const q = hrs.map((s, h) => ({ h, ...s, wr: s.n ? s.w / s.n : 0 })).filter(x => x.n >= min);
+    q.sort((a, b) => b.wr - a.wr || b.n - a.n);
+    const k = Math.min(3, Math.floor(q.length / 2));
+    const best = q.slice(0, k);
+    const worst = q.slice(q.length - k).reverse();
+    const mostLosses = hrs.reduce((m, s, h) => s.l > hrs[m].l ? h : m, 0);
+    return { best, worst, mostLosses, overall, maxN, k };
   }
 
   function tone(wr, base) {
@@ -580,6 +702,33 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     const P = (r, a) => [(cx + r * Math.cos(rad(a))).toFixed(2), (cy + r * Math.sin(rad(a))).toFixed(2)];
     const [x0, y0] = P(r1, a0), [x1, y1] = P(r1, a1), [x2, y2] = P(r0, a1), [x3, y3] = P(r0, a0);
     return `M${x0} ${y0}A${r1} ${r1} 0 0 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 0 0 ${x3} ${y3}Z`;
+  }
+
+  // Builds the 24-hour dial as an SVG string. interactive=false (used for the compare view) drops
+  // hover/click affordances since those dials aren't wired to the shared pick() handler.
+  function dialSVG(hrs, tot, rank, min, interactive = true) {
+    const { overall, maxN } = rank;
+    const cx = 210, cy = 210, r0 = 66, rMax = 170;
+    let svg = `<circle cx="${cx}" cy="${cy}" r="${r0 - 6}" fill="none" stroke="var(--line)"/>`;
+    for (let h = 0; h < 24; h++) {
+      const s = hrs[h];
+      const a0 = h * 15 - 90 + 0.9, a1 = (h + 1) * 15 - 90 - 0.9;
+      const len = s.n ? r0 + 6 + (s.n / maxN) * (rMax - r0 - 6) : 0;
+      const wr = s.n ? s.w / s.n : 0;
+      const label = `${range(h)}: ${s.n} games, ${s.n ? pct(wr) : 'no'} win rate`;
+      const attrs = interactive ? `data-h="${h}" tabindex="0" role="button" aria-label="${label}"` : `aria-hidden="true"`;
+      svg += `<g class="wedge${interactive ? '' : ' static'}" ${attrs}>
+        <path class="track" d="${sector(cx, cy, r0, rMax, a0, a1)}"/>
+        ${s.n ? `<path class="datum${s.n < min ? ' thin' : ''}" style="--i:${h};fill:${tone(wr, overall)}" d="${sector(cx, cy, r0, len, a0, a1)}"/>` : ''}
+      </g>`;
+    }
+    for (let h = 0; h < 24; h += 3) {
+      const a = (h + 0.5) * 15 - 90, r = 190;
+      svg += `<text class="dlabel" x="${(cx + r * Math.cos(a * Math.PI / 180)).toFixed(1)}" y="${(cy + r * Math.sin(a * Math.PI / 180)).toFixed(1)}">${pad(h)}</text>`;
+    }
+    svg += `<text class="dbig" x="${cx}" y="${cy + 4}">${pct(overall)}</text>
+            <text class="dsub" x="${cx}" y="${cy + 24}">${tot.n.toLocaleString()} games</text>`;
+    return svg;
   }
 
   /* ---------- Persona: a shareable label for when someone plays ---------- */
@@ -630,17 +779,16 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     if (p.location && p.countryName && p.location.toLowerCase().includes(p.countryName.toLowerCase())) place = p.location;
     $('#plLoc').innerHTML = place ? `${PIN}<span>${esc(place)}</span>` : '';
 
-    // Offer their time zone only when the country has exactly one and it isn't already selected
-    const z = p.zones && p.zones.length === 1 ? p.zones[0] : '';
-    $('#plHint').innerHTML = z && z !== state.tz && ZONE_SET.has(z)
-      ? `<span>Their country uses ${esc(zoneName(z))}.</span><button type="button" class="btn" data-tz="${esc(z)}">Show hours in it</button>`
-      : '';
+    // Reference note: the zone we auto-detected and applied for them (see run())
+    const z = autoZoneForProfile(p);
+    $('#plHint').innerHTML = z ? `<span>Their time zone: ${esc(zoneName(z))}</span>` : '';
   }
 
   function render(fresh = false) {
     const { hrs, days, grid, tot } = compute();
     state.cache = { hrs, days, grid, tot };
     $('#shareBtn').disabled = !tot.n;
+    $('#compareBtn').disabled = !tot.n;
     renderProfile();
 
     // Time-control chips (based on all loaded games)
@@ -661,17 +809,9 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       return;
     }
 
-    const overall = tot.w / tot.n;
-    const maxN = Math.max(...hrs.map(h => h.n));
-
-    // Ranking (only hours with enough games)
-    const q = hrs.map((s, h) => ({ h, ...s, wr: s.n ? s.w / s.n : 0 })).filter(x => x.n >= state.min);
-    q.sort((a, b) => b.wr - a.wr || b.n - a.n);
-    const k = Math.min(3, Math.floor(q.length / 2));
-    const best = q.slice(0, k);
-    const worst = q.slice(q.length - k).reverse();
-    const mostLosses = hrs.reduce((m, s, h) => s.l > hrs[m].l ? h : m, 0);
-    state.cache.rank = { best, worst, mostLosses, overall, maxN, k };
+    const rank = computeRank(hrs, tot, state.min);
+    state.cache.rank = rank;
+    const { best, worst, mostLosses, k, overall, maxN } = rank;
 
     // Persona chips
     const pe = computePersona(hrs, days, tot);
@@ -697,27 +837,8 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       : `Lower "Minimum games per hour" or choose a longer period.`;
 
     // Dial
-    const cx = 210, cy = 210, r0 = 66, rMax = 170;
-    let svg = `<circle cx="${cx}" cy="${cy}" r="${r0 - 6}" fill="none" stroke="var(--line)"/>`;
-    for (let h = 0; h < 24; h++) {
-      const s = hrs[h];
-      const a0 = h * 15 - 90 + 0.9, a1 = (h + 1) * 15 - 90 - 0.9;
-      const len = s.n ? r0 + 6 + (s.n / maxN) * (rMax - r0 - 6) : 0;
-      const wr = s.n ? s.w / s.n : 0;
-      const label = `${range(h)}: ${s.n} games, ${s.n ? pct(wr) : 'no'} win rate`;
-      svg += `<g class="wedge" data-h="${h}" tabindex="0" role="button" aria-label="${label}">
-        <path class="track" d="${sector(cx, cy, r0, rMax, a0, a1)}"/>
-        ${s.n ? `<path class="datum${s.n < state.min ? ' thin' : ''}" style="--i:${h};fill:${tone(wr, overall)}" d="${sector(cx, cy, r0, len, a0, a1)}"/>` : ''}
-      </g>`;
-    }
-    for (let h = 0; h < 24; h += 3) {
-      const a = (h + 0.5) * 15 - 90, r = 190;
-      svg += `<text class="dlabel" x="${(cx + r * Math.cos(a * Math.PI / 180)).toFixed(1)}" y="${(cy + r * Math.sin(a * Math.PI / 180)).toFixed(1)}">${pad(h)}</text>`;
-    }
-    svg += `<text class="dbig" x="${cx}" y="${cy + 4}">${pct(overall)}</text>
-            <text class="dsub" x="${cx}" y="${cy + 24}">${tot.n.toLocaleString()} games</text>`;
     const dial = $('#dial');
-    dial.innerHTML = svg;
+    dial.innerHTML = dialSVG(hrs, tot, rank, state.min, true);
     dial.classList.toggle('enter', fresh);
 
     // Bars
@@ -739,7 +860,8 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     $('#foot').innerHTML =
       `<p>Hours are when each game ended, in ${esc(tzName)}. Only standard chess games are counted; variants are skipped. Draws count as not won.</p>` +
       `<p>Faded wedges have fewer than ${state.min} games, so treat them as noise. Data comes from Chess.com's public API. This site is not affiliated with Chess.com.</p>` +
-      (state.failed ? `<p>${state.failed} monthly archive${state.failed > 1 ? 's' : ''} could not be loaded, so the totals may be slightly low.</p>` : '');
+      (state.failed ? `<p>${state.failed} monthly archive${state.failed > 1 ? 's' : ''} could not be loaded, so the totals may be slightly low.</p>` : '') +
+      (compareOn && stateB.failed ? `<p>${stateB.failed} of ${esc(stateB.user)}'s monthly archives could not be loaded either.</p>` : '');
 
     // Default selection: best ranked hour, otherwise the busiest hour
     if (state.hour === null) state.hour = best.length ? best[0].h : hrs.findIndex(s => s.n === maxN);
@@ -808,6 +930,100 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     document.querySelectorAll('[data-h]').forEach(el => el.classList.toggle('sel', +el.dataset.h === h));
   }
 
+  /* ---------- Compare with a friend ---------- */
+  function renderCompare() {
+    const rA = computeFor(state.games, state.tc, state.tz);
+    const rankA = computeRank(rA.hrs, rA.tot, state.min);
+    const personaA = computePersona(rA.hrs, rA.days, rA.tot);
+    state.cache = { ...rA, rank: rankA, persona: personaA };
+
+    const rB = computeFor(stateB.games, state.tc, stateB.tz);
+    const rankB = computeRank(rB.hrs, rB.tot, state.min);
+    const personaB = computePersona(rB.hrs, rB.days, rB.tot);
+    stateB.cache = { ...rB, rank: rankB, persona: personaB };
+
+    $('#soloView').hidden = true;
+    $('#compareView').hidden = false;
+    $('#cmpBtnCell').classList.remove('open');
+
+    $('#cmpNameA').textContent = state.user;
+    $('#cmpNameB').textContent = stateB.user;
+    $('#cmpTzA').textContent = zoneName(state.tz);
+    if ($('#cmpTzB').value !== stateB.tz) $('#cmpTzB').value = stateB.tz;
+    $('#dialA').innerHTML = dialSVG(rA.hrs, rA.tot, rankA, state.min, false);
+    $('#dialB').innerHTML = dialSVG(rB.hrs, rB.tot, rankB, state.min, false);
+    $('#cmpPersonaA').innerHTML = personaA ? `<span class="pchip">${esc(personaA.name)}</span>` : '';
+    $('#cmpPersonaB').innerHTML = personaB ? `<span class="pchip">${esc(personaB.name)}</span>` : '';
+
+    $('#cmpHeadline').textContent = (personaA && personaB)
+      ? `${state.user} (${personaA.name}) vs ${stateB.user} (${personaB.name})`
+      : `${state.user} vs ${stateB.user}`;
+
+    const statBlock = (rank, tot, name) => {
+      if (!tot.n) return `<p class="note">No games from ${esc(name)} match these filters.</p>`;
+      if (rank.k < 1) return `<p class="note">Not enough games per hour yet to rank.</p>`;
+      return `<div class="cmp-stat" style="border-color:var(--win)"><div class="lbl">Best hour</div><div class="val">${pad(rank.best[0].h)}:00</div><div class="note">${pct(rank.best[0].wr)} wins · ${rank.best[0].n} games</div></div>
+        <div class="cmp-stat" style="border-color:var(--loss)"><div class="lbl">Toughest hour</div><div class="val">${pad(rank.worst[0].h)}:00</div><div class="note">${pct(rank.worst[0].wr)} wins · ${rank.worst[0].n} games</div></div>`;
+    };
+    $('#statsA').innerHTML = statBlock(rankA, rA.tot, state.user);
+    $('#statsB').innerHTML = statBlock(rankB, rB.tot, stateB.user);
+  }
+
+  function exitCompare() {
+    compareOn = false;
+    $('#soloView').hidden = false;
+    $('#compareView').hidden = true;
+    $('#cmpBtnCell').classList.add('open');
+  }
+
+  function setCmpStatus(msg, isErr) {
+    const s = $('#cmpStatus');
+    s.className = isErr ? 'err' : '';
+    s.textContent = msg;
+  }
+
+  async function runCompare() {
+    const friend = $('#cmpU').value.trim().replace(/^@/, '');
+    if (!/^[A-Za-z0-9_-]{2,25}$/.test(friend)) {
+      setCmpStatus('Enter a valid Chess.com username: letters, numbers, hyphens and underscores only.', true);
+      return;
+    }
+    if (friend.toLowerCase() === state.user.toLowerCase()) {
+      setCmpStatus('Enter a different username to compare with.', true);
+      return;
+    }
+    $('#cmpGo').disabled = true;
+    try {
+      const { games, profile, failed } = await load(friend, state.months, '#cmpStatus');
+      if (!games.length) throw Object.assign(new Error('nogames'), { code: 'nogames' });
+      Object.assign(stateB, { games, profile, failed, user: (profile && profile.username) || friend });
+      stateB.tz = autoZoneForProfile(profile) || state.tz;
+      setCmpStatus('');
+      $('#cmpFormWrap').classList.remove('open');
+      compareOn = true;
+      renderCompare();
+    } catch (e) {
+      setCmpStatus(errorMessage(e), true);
+    } finally {
+      $('#cmpGo').disabled = false;
+    }
+  }
+
+  $('#compareBtn').addEventListener('click', () => {
+    $('#cmpBtnCell').classList.remove('open');
+    $('#cmpFormWrap').classList.add('open');
+    setTimeout(() => $('#cmpU').focus(), 320);
+  });
+  $('#cmpCancel').addEventListener('click', () => {
+    $('#cmpFormWrap').classList.remove('open');
+    $('#cmpBtnCell').classList.add('open');
+    setCmpStatus('');
+  });
+  $('#cmpForm').addEventListener('submit', e => { e.preventDefault(); runCompare(); });
+  $('#cmpExit').addEventListener('click', exitCompare);
+  $('#cmpAgain').addEventListener('click', () => { exitCompare(); $('#compareBtn').click(); });
+  $('#cmpTzB').addEventListener('change', e => { stateB.tz = e.target.value; if (compareOn) renderCompare(); });
+
   /* ---------- Events ---------- */
   function pick(e) {
     const t = e.target.closest('[data-h]');
@@ -819,10 +1035,17 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     el.addEventListener('click', pick);
     el.addEventListener('focusin', pick);
   }
+  // Re-renders whichever view is showing. The chip/time-zone/minimum controls are shared by both
+  // players in compare mode, so a change there has to update both dials, not just player A's.
+  function refresh() {
+    render(false);
+    if (compareOn) renderCompare();
+  }
+
   $('#chips').addEventListener('click', e => {
     const b = e.target.closest('[data-tc]');
     if (!b) return;
-    state.tc = b.dataset.tc; state.hour = null; render();
+    state.tc = b.dataset.tc; state.hour = null; refresh();
   });
   function pickCell(e) {
     const t = e.target.closest('.hc');
@@ -834,13 +1057,8 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     if (!b) return;
     state.heat = b.dataset.mode; render();
   });
-  $('#plHint').addEventListener('click', e => {
-    const b = e.target.closest('[data-tz]');
-    if (!b) return;
-    state.tz = b.dataset.tz; $('#tz').value = state.tz; state.hour = null; render();
-  });
-  $('#tz').addEventListener('change', e => { state.tz = e.target.value; state.hour = null; render(); });
-  $('#min').addEventListener('change', e => { state.min = +e.target.value; state.hour = null; render(); });
+  $('#tz').addEventListener('change', e => { state.tz = e.target.value; state.hour = null; refresh(); });
+  $('#min').addEventListener('change', e => { state.min = +e.target.value; state.hour = null; refresh(); });
 
   /* ---------- Share ---------- */
   const SITE = { name: 'Chess by Hour', domain: 'chessbyhour.com', url: 'https://chessbyhour.com/' };
@@ -1009,6 +1227,114 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   }
 
   const pad2 = pad;
+
+  // The "vs" share image: two mini dials side by side, same palette and pawn art as the solo card.
+  async function drawCompareCard(cv) {
+    const { W, H } = CARD, pad = 72;
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+    try {
+      await Promise.all([
+        document.fonts.load('700 84px "Bricolage Grotesque"'),
+        document.fonts.load('500 30px Figtree'),
+        document.fonts.load('600 30px Figtree')
+      ]);
+    } catch (e) { /* system fonts are fine as a fallback */ }
+    const HEAD = '"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif';
+    const BODY = 'Figtree,"Avenir Next","Segoe UI",system-ui,sans-serif';
+    const A = state.cache, B = stateB.cache;
+    const midX = W / 2;
+
+    // Background + green footer band, identical to the solo card
+    ctx.fillStyle = CARD.bg; ctx.fillRect(0, 0, W, H);
+    drawPawn(ctx, W - 120, 280, 320, CARD.cream, 0.05);
+    const bandH = 80, bandY = H - bandH;
+    ctx.fillStyle = CARD.band; ctx.fillRect(0, bandY, W, bandH);
+    drawPawn(ctx, pad + 22, bandY + 62, 46, CARD.bgDeep, 1);
+    {
+      const cta = 'Find your own hours at ';
+      ctx.font = `600 30px ${BODY}`; const ctaW = ctx.measureText(cta).width;
+      ctx.font = `700 34px ${HEAD}`;
+      const startX = pad + 56;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = CARD.bgDeep; ctx.font = `600 30px ${BODY}`; ctx.fillText(cta, startX, bandY + bandH / 2);
+      ctx.fillStyle = CARD.ink; ctx.font = `700 34px ${HEAD}`; ctx.fillText(SITE.domain, startX + ctaW, bandY + bandH / 2);
+      ctx.textBaseline = 'alphabetic';
+    }
+
+    // Header wordmark
+    drawPawn(ctx, pad + 13, 108, 42, CARD.muted, 1);
+    ctx.textAlign = 'left'; ctx.fillStyle = CARD.muted; ctx.font = `600 30px ${BODY}`;
+    ctx.fillText(SITE.name, pad + 34, 118);
+
+    // Two usernames flanking a VS mark, each with their own time zone underneath
+    ctx.textAlign = 'left'; ctx.fillStyle = CARD.ink;
+    let fsA = 58; ctx.font = `700 ${fsA}px ${HEAD}`;
+    while (ctx.measureText(state.user).width > midX - pad - 60 && fsA > 32) { fsA -= 3; ctx.font = `700 ${fsA}px ${HEAD}`; }
+    ctx.fillText(state.user, pad, 214);
+    ctx.fillStyle = CARD.muted; ctx.font = `500 22px ${BODY}`;
+    ctx.fillText(zoneName(state.tz), pad, 244);
+
+    ctx.textAlign = 'right'; ctx.fillStyle = CARD.ink;
+    let fsB = 58; ctx.font = `700 ${fsB}px ${HEAD}`;
+    while (ctx.measureText(stateB.user).width > midX - pad - 60 && fsB > 32) { fsB -= 3; ctx.font = `700 ${fsB}px ${HEAD}`; }
+    ctx.fillText(stateB.user, W - pad, 214);
+    ctx.fillStyle = CARD.muted; ctx.font = `500 22px ${BODY}`;
+    ctx.fillText(zoneName(stateB.tz), W - pad, 244);
+
+    ctx.textAlign = 'center'; ctx.fillStyle = CARD.win; ctx.font = `700 28px ${HEAD}`;
+    ctx.fillText('VS', midX, 208);
+    ctx.strokeStyle = CARD.mid; ctx.lineWidth = 2; ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.moveTo(midX, 170); ctx.lineTo(midX, 1048); ctx.stroke(); ctx.globalAlpha = 1;
+
+    // Two mini dials
+    const cxA = W * 0.27, cxB = W * 0.73, cyD = 560, r0 = 68, rMax = 186;
+    function miniDial(cx, hrs, rank) {
+      for (let h = 0; h < 24; h++) {
+        const s = hrs[h];
+        wedgePath(ctx, cx, cyD, r0, rMax, h); ctx.fillStyle = CARD.track; ctx.fill();
+        if (s.n) {
+          const len = r0 + 6 + (s.n / rank.maxN) * (rMax - r0 - 6);
+          wedgePath(ctx, cx, cyD, r0, len, h);
+          ctx.globalAlpha = s.n < state.min ? 0.4 : 1;
+          ctx.fillStyle = cardTone(s.w / s.n, rank.overall); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      }
+      if (rank.k >= 1) {
+        ctx.lineWidth = 4; ctx.lineJoin = 'round';
+        wedgePath(ctx, cx, cyD, r0, rMax, rank.best[0].h); ctx.strokeStyle = CARD.win; ctx.stroke();
+        wedgePath(ctx, cx, cyD, r0, rMax, rank.worst[0].h); ctx.strokeStyle = CARD.loss; ctx.stroke();
+      }
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = CARD.ink; ctx.font = `700 50px ${HEAD}`; ctx.fillText(pct(rank.overall), cx, cyD + 14);
+      ctx.fillStyle = CARD.muted; ctx.font = `500 20px ${BODY}`; ctx.fillText('win rate', cx, cyD + 40);
+    }
+    miniDial(cxA, A.hrs, A.rank);
+    miniDial(cxB, B.hrs, B.rank);
+
+    // Persona labels under each dial
+    const personaY = cyD + rMax + 46;
+    ctx.textAlign = 'center';
+    if (A.persona) { ctx.fillStyle = CARD.win; ctx.font = `700 26px ${HEAD}`; ctx.fillText(A.persona.name, cxA, personaY); }
+    if (B.persona) { ctx.fillStyle = CARD.win; ctx.font = `700 26px ${HEAD}`; ctx.fillText(B.persona.name, cxB, personaY); }
+
+    // Best/toughest hour, compact, per player
+    const statY0 = personaY + 50;
+    function miniStats(cx, rank) {
+      ctx.textAlign = 'center';
+      if (rank.k < 1) { ctx.fillStyle = CARD.muted; ctx.font = `500 24px ${BODY}`; ctx.fillText('Not enough games yet', cx, statY0); return; }
+      ctx.fillStyle = CARD.muted; ctx.font = `600 22px ${BODY}`; ctx.fillText('Best', cx, statY0);
+      ctx.fillStyle = CARD.win; ctx.font = `700 44px ${HEAD}`; ctx.fillText(`${pad2(rank.best[0].h)}:00`, cx, statY0 + 46);
+      ctx.fillStyle = CARD.muted; ctx.font = `500 22px ${BODY}`; ctx.fillText(`${pct(rank.best[0].wr)} · ${rank.best[0].n} games`, cx, statY0 + 76);
+      ctx.fillStyle = CARD.muted; ctx.font = `600 22px ${BODY}`; ctx.fillText('Toughest', cx, statY0 + 130);
+      ctx.fillStyle = CARD.loss; ctx.font = `700 44px ${HEAD}`; ctx.fillText(`${pad2(rank.worst[0].h)}:00`, cx, statY0 + 176);
+      ctx.fillStyle = CARD.muted; ctx.font = `500 22px ${BODY}`; ctx.fillText(`${pct(rank.worst[0].wr)} · ${rank.worst[0].n} games`, cx, statY0 + 206);
+    }
+    miniStats(cxA, A.rank);
+    miniStats(cxB, B.rank);
+  }
+
   const dlg = $('#shareDlg');
   const sh = { blob: null, file: null, text: '', url: '', native: false };
   const shMsg = m => { $('#shareMsg').textContent = m; };
@@ -1026,18 +1352,38 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     return { text, url };
   }
 
-  async function openShare() {
-    if (!state.cache || !state.cache.rank) return;
+  function compareShareInfo() {
+    const rA = state.cache.rank, rB = stateB.cache.rank;
+    const text = (rA.k >= 1 && rB.k >= 1)
+      ? `${state.user} peaks at ${pad(rA.best[0].h)}:00, ${stateB.user} peaks at ${pad(rB.best[0].h)}:00. Who wins more, and when? Compare on Chess by Hour.`
+      : `${state.user} vs ${stateB.user} — compare your winning hours on Chess by Hour.`;
+    const live = /^https?:$/.test(location.protocol) && !/^(localhost|127\.|\[::1\])/.test(location.hostname);
+    const url = live ? location.origin + location.pathname : SITE.url;
+    return { text, url };
+  }
+
+  async function openShareGeneric(drawFn, filenameUser, infoFn, title) {
     shBusy(true); shMsg('Making your image…');
+    $('#shareTitle').textContent = title;
     dlg.showModal();
     const cv = $('#shareCanvas');
-    await drawCard(cv);
+    await drawFn(cv);
     sh.blob = await new Promise(res => cv.toBlob(res, 'image/png'));
-    Object.assign(sh, shareInfo());
-    sh.file = new File([sh.blob], `chess-by-hour-${state.user}.png`, { type: 'image/png' });
+    Object.assign(sh, infoFn());
+    sh.file = new File([sh.blob], `chess-by-hour-${filenameUser}.png`, { type: 'image/png' });
     sh.native = !!(navigator.canShare && navigator.canShare({ files: [sh.file] }));
     $('#shNative').hidden = !sh.native;
     shBusy(false); shMsg('');
+  }
+
+  async function openShare() {
+    if (!state.cache || !state.cache.rank) return;
+    await openShareGeneric(drawCard, state.user, shareInfo, 'Share your results');
+  }
+
+  async function openCompareShare() {
+    if (!state.cache || !stateB.cache) return;
+    await openShareGeneric(drawCompareCard, `${state.user}-vs-${stateB.user}`, compareShareInfo, 'Share your comparison');
   }
 
   function download() {
@@ -1055,6 +1401,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   const nativeShare = () => navigator.share({ files: [sh.file], title: 'Chess by Hour', text: sh.text + (sh.url ? ' ' + sh.url : '') }).catch(() => {});
 
   $('#shareBtn').addEventListener('click', openShare);
+  $('#cmpShareBtn').addEventListener('click', openCompareShare);
   $('#shareClose').addEventListener('click', () => dlg.close());
   dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
   $('#shNative').addEventListener('click', nativeShare);
@@ -1094,11 +1441,16 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     $('#go').disabled = true;
     document.body.classList.add('compact');
     $('#results').hidden = true;
+    $('#cmpBtnCell').classList.remove('open');
     try {
       const months = +$('#months').value;
-      const { games, profile } = await load(user, months);
+      const { games, profile, failed } = await load(user, months);
       if (!games.length) throw Object.assign(new Error('nogames'), { code: 'nogames' });
-      Object.assign(state, { games, profile, user: (profile && profile.username) || user, months, tc: 'all', hour: null });
+      Object.assign(state, { games, profile, user: (profile && profile.username) || user, months, tc: 'all', hour: null, failed });
+      state.tz = autoZoneForProfile(profile) || BROWSER_TZ;
+      $('#tz').value = state.tz;
+      exitCompare();
+      $('#cmpFormWrap').classList.remove('open'); setCmpStatus('');
       setStatus('');
       $('#results').hidden = false;
       render(true);
