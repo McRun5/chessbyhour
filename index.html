@@ -1346,7 +1346,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       ? `${state.user} wins most around ${pad(r.best[0].h)}:00 (${pct(r.best[0].wr)}) and loses most around ${pad(r.worst[0].h)}:00 (${pct(r.worst[0].wr)}). When do you win?`
       : `Chess by Hour results for ${state.user}. When do you win?`;
     const live = /^https?:$/.test(location.protocol) && !/^(localhost|127\.|\[::1\])/.test(location.hostname);
-    const url = (live ? location.origin + location.pathname : SITE.url) + '#' + encodeURIComponent(state.user);
+    const url = (live ? location.origin + location.pathname : SITE.url) + '?u=' + encodeURIComponent(state.user);
     return { text, url };
   }
 
@@ -1356,7 +1356,8 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       ? `${state.user} peaks at ${pad(rA.best[0].h)}:00, ${stateB.user} peaks at ${pad(rB.best[0].h)}:00. Who wins more, and when? Compare on Chess by Hour.`
       : `${state.user} vs ${stateB.user} — compare your winning hours on Chess by Hour.`;
     const live = /^https?:$/.test(location.protocol) && !/^(localhost|127\.|\[::1\])/.test(location.hostname);
-    const url = live ? location.origin + location.pathname : SITE.url;
+    const base = live ? location.origin + location.pathname : SITE.url;
+    const url = base + '?u=' + encodeURIComponent(state.user) + '&vs=' + encodeURIComponent(stateB.user);
     return { text, url };
   }
 
@@ -1452,7 +1453,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       setStatus('');
       $('#results').hidden = false;
       render(true);
-      history.replaceState(null, '', '#' + encodeURIComponent(user));
+      history.replaceState(null, '', '?u=' + encodeURIComponent(user));
     } catch (e) {
       setStatus(errorMessage(e), null, true);
     } finally {
@@ -1464,9 +1465,13 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
 
   $('#yr').textContent = new Date().getFullYear();
 
-  // Support links like index.html#hikaru
+  // Support links like index.html?u=hikaru (query param, so link-preview crawlers see a distinct
+  // URL per username — a #fragment is never sent to the server, so every hash link looked identical
+  // to X/Facebook's crawler and shared one cache entry). Old #hikaru links still work too.
+  const fromQuery = new URLSearchParams(location.search).get('u');
   const fromHash = decodeURIComponent(location.hash.slice(1));
-  if (fromHash && fromHash !== 'about') { $('#u').value = fromHash; run(); }
+  const deepLinkUser = fromQuery || (fromHash && fromHash !== 'about' ? fromHash : '');
+  if (deepLinkUser) { $('#u').value = deepLinkUser; run(); }
 })();
 </script>
 </body>
