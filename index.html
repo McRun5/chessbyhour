@@ -844,7 +844,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
 
   /* ---------- Share ---------- */
   const SITE = { name: 'Chess by Hour', domain: 'chessbyhour.com', url: 'https://chessbyhour.com/' };
-  const CARD = { W: 1080, H: 1350, bg: '#0f1720', ink: '#e6edf3', muted: '#93a3b3', win: '#45c495', loss: '#e0708f', mid: '#3a4957', track: '#1c2935', check: '#16222c', check2: '#213040', band: '#121b24', accent: '#d9a940' };
+  const CARD = { W: 1080, H: 1350, bg: '#2b241e', bgDeep: '#211b16', ink: '#ffffff', muted: '#bcb4a8', win: '#81b64c', winDeep: '#45753c', loss: '#e0708f', mid: '#5a4f42', track: '#4a443a', cream: '#ebecd0', band: '#81b64c', accent: '#81b64c' };
   const hexRgb = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
   const mixHex = (a, b, p) => { const A = hexRgb(a), B = hexRgb(b); return `rgb(${A.map((v, i) => Math.round(v * p + B[i] * (1 - p))).join(',')})`; };
   const cardTone = (wr, base) => { const d = wr - base; return mixHex(d >= 0 ? CARD.win : CARD.loss, CARD.mid, Math.max(0.14, Math.min(1, Math.abs(d) / 0.2))); };
@@ -862,6 +862,44 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     ctx.lineTo(x, y + r); ctx.arc(x + r, y + r, r, Math.PI, Math.PI * 1.5); ctx.closePath();
   }
 
+  // A plain Staunton-style pawn silhouette (not Chess.com's own piece art) — cx,cy is the base center, s the height
+  function pawnPoints(cx, cy, s, n = 14) {
+    const arc = (cx_, cy_, rx, ry, a0, a1) => {
+      const pts = [];
+      for (let i = 0; i <= n; i++) {
+        const a = (a0 + (a1 - a0) * i / n) * Math.PI / 180;
+        pts.push([cx_ + rx * Math.cos(a), cy_ + ry * Math.sin(a)]);
+      }
+      return pts;
+    };
+    const headR = 0.150 * s, headCy = cy - 0.870 * s;
+    const neckW = 0.075 * s, neckY = cy - 0.680 * s;
+    const collarCy = cy - 0.640 * s, collarRx = 0.145 * s, collarRy = 0.045 * s;
+    const bodyTopW = 0.120 * s, bodyTopY = cy - 0.560 * s;
+    const bodyBotW = 0.230 * s, bodyBotY = cy - 0.230 * s;
+    const baseTopW = 0.290 * s, baseTopY = cy - 0.200 * s;
+    const baseBotW = 0.400 * s, baseBotY = cy - 0.025 * s;
+    let right = [];
+    right = right.concat(arc(cx, headCy, headR, headR, -90, 5));
+    right.push([cx + neckW, neckY]);
+    right = right.concat(arc(cx, collarCy, collarRx, collarRy, -15, 65));
+    right.push([cx + bodyTopW, bodyTopY]);
+    right.push([cx + bodyBotW, bodyBotY]);
+    right.push([cx + baseTopW, baseTopY]);
+    right.push([cx + baseBotW, baseBotY]);
+    right.push([cx + baseBotW, cy]);
+    const left = right.slice().reverse().map(([x, y]) => [2 * cx - x, y]);
+    return right.concat(left);
+  }
+
+  function drawPawn(ctx, cx, cyBase, height, color, alpha = 1) {
+    const pts = pawnPoints(cx, cyBase, height);
+    ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = color;
+    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+
   async function drawCard(cv) {
     const { W, H } = CARD, pad = 72;
     cv.width = W; cv.height = H;
@@ -877,24 +915,26 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     const BODY = 'Figtree,"Avenir Next","Segoe UI",system-ui,sans-serif';
     const { hrs, tot, rank: r } = state.cache;
 
-    // Background, with a solid footer band that carries the call to action
+    // Background, with a green footer band carrying the call to action
     ctx.fillStyle = CARD.bg; ctx.fillRect(0, 0, W, H);
+    drawPawn(ctx, W - 120, 300, 340, CARD.cream, 0.06); // faint corner watermark
     const bandH = 80, bandY = H - bandH;
     ctx.fillStyle = CARD.band; ctx.fillRect(0, bandY, W, bandH);
-    ctx.fillStyle = CARD.accent; ctx.fillRect(0, bandY, W, 3);
+    drawPawn(ctx, pad + 22, bandY + 62, 46, CARD.bgDeep, 1);
     const cta = 'Find your own hours at ';
-    ctx.font = `500 32px ${BODY}`; const ctaW = ctx.measureText(cta).width;
-    ctx.font = `700 40px ${HEAD}`; const domW = ctx.measureText(SITE.domain).width;
-    const ctaX = (W - ctaW - domW) / 2, ctaY = bandY + 3 + (bandH - 3) / 2;
+    ctx.font = `600 30px ${BODY}`; const ctaW = ctx.measureText(cta).width;
+    ctx.font = `700 34px ${HEAD}`; const domW = ctx.measureText(SITE.domain).width;
+    const startX = pad + 56;
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = CARD.muted; ctx.font = `500 32px ${BODY}`; ctx.fillText(cta, ctaX, ctaY);
-    ctx.fillStyle = CARD.accent; ctx.font = `700 40px ${HEAD}`; ctx.fillText(SITE.domain, ctaX + ctaW, ctaY);
+    ctx.fillStyle = CARD.bgDeep; ctx.font = `600 30px ${BODY}`; ctx.fillText(cta, startX, bandY + bandH / 2);
+    ctx.fillStyle = CARD.ink; ctx.font = `700 34px ${HEAD}`; ctx.fillText(SITE.domain, startX + ctaW, bandY + bandH / 2);
     ctx.textBaseline = 'alphabetic';
 
-    // Header: site name, optional host, username, summary line
-    ctx.textBaseline = 'alphabetic';
-    ctx.textAlign = 'left'; ctx.fillStyle = CARD.muted; ctx.font = `600 30px ${BODY}`;
-    ctx.fillText(SITE.name, pad, 118);
+    // Header: pawn mark + site name, username, summary line
+    ctx.textAlign = 'left'; ctx.fillStyle = CARD.muted;
+    drawPawn(ctx, pad + 13, 108, 42, CARD.muted, 1);
+    ctx.font = `600 30px ${BODY}`;
+    ctx.fillText(SITE.name, pad + 34, 118);
     ctx.textAlign = 'left'; ctx.fillStyle = CARD.ink;
     let fs = 96; ctx.font = `700 ${fs}px ${HEAD}`;
     while (ctx.measureText(state.user).width > W - 2 * pad && fs > 40) { fs -= 4; ctx.font = `700 ${fs}px ${HEAD}`; }
@@ -903,15 +943,14 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     // Persona label: the line people actually share, with an optional secondary tag
     const pe = state.cache.persona;
     if (pe) {
-      ctx.font = `700 50px ${HEAD}`; ctx.fillStyle = CARD.accent;
+      ctx.font = `700 50px ${HEAD}`; ctx.fillStyle = CARD.win;
       ctx.fillText(pe.name, pad, 290);
       if (pe.tag) {
         const nameW = ctx.measureText(pe.name).width;
         ctx.font = `600 26px ${BODY}`;
-        const pw = ctx.measureText(pe.tag).width + 40, px = pad + nameW + 28, py = 250;
-        ctx.strokeStyle = CARD.muted; ctx.lineWidth = 2;
-        roundRectPath(ctx, px, py, pw, 46, 23); ctx.stroke();
-        ctx.fillStyle = CARD.ink; ctx.textBaseline = 'middle';
+        const pw = ctx.measureText(pe.tag).width + 40, px = pad + nameW + 26, py = 250;
+        roundRectPath(ctx, px, py, pw, 46, 23); ctx.fillStyle = CARD.winDeep; ctx.fill();
+        ctx.fillStyle = CARD.cream; ctx.textBaseline = 'middle';
         ctx.fillText(pe.tag, px + 20, py + 24);
         ctx.textBaseline = 'alphabetic';
       }
