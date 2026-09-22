@@ -1342,11 +1342,9 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
 
   function shareInfo() {
     const r = state.cache.rank;
-    const pe = state.cache.persona;
-    const lead = pe ? `Chess persona: ${pe.name}. ` : '';
-    const text = lead + (r.k >= 1
-      ? `${state.user} wins most around ${pad(r.best[0].h)}:00 (${pct(r.best[0].wr)}) and loses most around ${pad(r.worst[0].h)}:00 (${pct(r.worst[0].wr)}) on Chess.com. When do you win?`
-      : `Chess by Hour results for ${state.user} on Chess.com. When do you win?`);
+    const text = r.k >= 1
+      ? `${state.user} wins most around ${pad(r.best[0].h)}:00 (${pct(r.best[0].wr)}) and loses most around ${pad(r.worst[0].h)}:00 (${pct(r.worst[0].wr)}). When do you win?`
+      : `Chess by Hour results for ${state.user}. When do you win?`;
     const live = /^https?:$/.test(location.protocol) && !/^(localhost|127\.|\[::1\])/.test(location.hostname);
     const url = (live ? location.origin + location.pathname : SITE.url) + '#' + encodeURIComponent(state.user);
     return { text, url };
