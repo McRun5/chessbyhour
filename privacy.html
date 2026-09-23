@@ -8,6 +8,23 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#e8edf1" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#121a21" media="(prefers-color-scheme: dark)">
+<!-- Google Analytics (GA4) -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // Default to no tracking in the EEA/UK/Switzerland until this site adds a consent banner and
+  // updates this to 'granted' there. Everywhere else defaults to granted.
+  gtag('consent', 'default', {
+    analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV',
+             'LI','LT','LU','MT','NL','NO','PL','PT','RO','SK','SI','ES','SE','IS','GB','CH']
+  });
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-GLT2S5M4M4"></script>
+<script>
+  gtag('js', new Date());
+  gtag('config', 'G-GLT2S5M4M4');
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
@@ -55,7 +72,7 @@ footer nav{display:flex;gap:22px;flex-wrap:wrap}
       <ul>
         <li>You enter a public Chess.com username, and the analysis runs in your browser.</li>
         <li>This site does not have accounts, and it does not store the usernames you enter or the games they load.</li>
-        <li>This site does not set cookies or use local storage itself.</li>
+        <li>This site uses Google Analytics to see how many people visit and which pages they read, and does not otherwise set cookies or use local storage itself.</li>
         <li>A few third parties are involved, listed below, and they see standard technical data such as your IP address.</li>
       </ul>
     </div>
@@ -69,10 +86,11 @@ footer nav{display:flex;gap:22px;flex-wrap:wrap}
     <p>The share image is created in your browser and is not uploaded to this site. If you choose to post it to X, send it through WhatsApp, or use your device's share menu, the content goes to that service and is handled under its own privacy policy.</p>
 
     <h2>Cookies and local storage</h2>
-    <p>This site does not set cookies and does not use your browser's local storage. Some third parties described below may set their own, in particular if advertising is shown.</p>
+    <p>This site uses Google Analytics, which sets cookies to distinguish visitors and measure how the site is used. In the European Economic Area, the United Kingdom, Switzerland, Iceland and Norway, Analytics does not track you unless this site later adds a consent banner and you agree to it; everywhere else, Analytics runs by default. This site does not otherwise set cookies or use your browser's local storage. Other third parties described below may set their own, in particular if advertising is shown.</p>
 
     <h2>Third parties involved</h2>
     <ul>
+      <li><strong>Google Analytics</strong> collects anonymized-where-required usage data — pages viewed, general location, device and browser type — to help us understand how the site is used. See <a href="https://policies.google.com/privacy" rel="noopener">Google's privacy policy</a> and, to opt out on any site, the <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener">Google Analytics opt-out browser add-on</a>.</li>
       <li><strong>Chess.com</strong> receives the requests for the profile and game data, and it serves the player's avatar image. It therefore sees your IP address and browser details, as it does for any visit to its site.</li>
       <li><strong>Google Fonts</strong> supplies the typefaces used on this site. Loading them sends your IP address and browser details to Google.</li>
       <li><strong>The hosting provider</strong> that serves this site's files may keep standard server logs, such as IP address, time of visit and the page requested.</li>

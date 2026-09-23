@@ -23,6 +23,23 @@
 <meta name="twitter:description" content="Enter a Chess.com username and see the hours of the day you win and lose the most. Free, no signup.">
 <meta name="twitter:image" content="https://chessbyhour.com/og-image.png">
 <meta name="twitter:image:alt" content="A 24-hour dial showing which hours of the day a chess player wins and loses the most">
+<!-- Google Analytics (GA4) -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // Default to no tracking in the EEA/UK/Switzerland until this site adds a consent banner and
+  // updates this to 'granted' there. Everywhere else defaults to granted.
+  gtag('consent', 'default', {
+    analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV',
+             'LI','LT','LU','MT','NL','NO','PL','PT','RO','SK','SI','ES','SE','IS','GB','CH']
+  });
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-GLT2S5M4M4"></script>
+<script>
+  gtag('js', new Date());
+  gtag('config', 'G-GLT2S5M4M4');
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
