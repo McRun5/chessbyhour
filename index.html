@@ -1122,6 +1122,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     const { W, H } = CARD, pad = 72;
     cv.width = W; cv.height = H;
     const ctx = cv.getContext('2d');
+    const avatarPromise = loadAvatarImage(state.profile && state.profile.avatar);
     try {
       await Promise.all([
         document.fonts.load('700 84px "Bricolage Grotesque"'),
@@ -1129,6 +1130,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
         document.fonts.load('600 30px Figtree')
       ]);
     } catch (e) { /* system fonts are fine as a fallback */ }
+    const avatarImg = await avatarPromise;
     const HEAD = '"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif';
     const BODY = 'Figtree,"Avenir Next","Segoe UI",system-ui,sans-serif';
     const { hrs, tot, rank: r } = state.cache;
@@ -1154,9 +1156,11 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     ctx.font = `600 30px ${BODY}`;
     ctx.fillText(SITE.name, pad + 34, 118);
     ctx.textAlign = 'left'; ctx.fillStyle = CARD.ink;
+    const avR = 48, avCX = pad + avR, avCY = 185, userX = pad + avR * 2 + 24;
+    drawAvatarCircle(ctx, avatarImg, avCX, avCY, avR, (state.user || '?').charAt(0).toUpperCase(), CARD.mid, CARD.ink, `700 ${avR}px ${HEAD}`);
     let fs = 96; ctx.font = `700 ${fs}px ${HEAD}`;
-    while (ctx.measureText(state.user).width > W - 2 * pad && fs > 40) { fs -= 4; ctx.font = `700 ${fs}px ${HEAD}`; }
-    ctx.fillText(state.user, pad, 214);
+    while (ctx.measureText(state.user).width > W - pad - userX && fs > 40) { fs -= 4; ctx.font = `700 ${fs}px ${HEAD}`; }
+    ctx.fillText(state.user, userX, 214);
 
     // Persona label: the line people actually share, with an optional secondary tag
     const pe = state.cache.persona;
@@ -1228,11 +1232,46 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
 
   const pad2 = pad;
 
+  // Loads a profile photo for canvas use. Chess.com's CDN may or may not allow cross-origin canvas
+  // reads; if the image fails, is blocked, or times out, this resolves to null rather than
+  // rejecting — callers fall back to an initial-letter circle instead of breaking the share flow.
+  function loadAvatarImage(src) {
+    return new Promise(resolve => {
+      if (!src) { resolve(null); return; }
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      let done = false;
+      const finish = v => { if (!done) { done = true; resolve(v); } };
+      img.onload = () => finish(img.naturalWidth ? img : null);
+      img.onerror = () => finish(null);
+      img.src = src;
+      setTimeout(() => finish(null), 4000);
+    });
+  }
+
+  // Draws a circular avatar (cover-cropped to a square) at cx,cy with radius r, or a letter on a
+  // solid circle when no image loaded.
+  function drawAvatarCircle(ctx, img, cx, cy, r, letter, bgColor, letterColor, font) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+    if (img) {
+      const s = Math.min(img.naturalWidth, img.naturalHeight);
+      ctx.drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, cx - r, cy - r, r * 2, r * 2);
+    } else {
+      ctx.fillStyle = bgColor; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      ctx.fillStyle = letterColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = font; ctx.fillText(letter, cx, cy + r * 0.07);
+    }
+    ctx.restore();
+  }
+
   // The "vs" share image: two mini dials side by side, same palette and pawn art as the solo card.
   async function drawCompareCard(cv) {
     const { W, H } = CARD, pad = 72;
     cv.width = W; cv.height = H;
     const ctx = cv.getContext('2d');
+    const avatarPromiseA = loadAvatarImage(state.profile && state.profile.avatar);
+    const avatarPromiseB = loadAvatarImage(stateB.profile && stateB.profile.avatar);
     try {
       await Promise.all([
         document.fonts.load('700 84px "Bricolage Grotesque"'),
@@ -1240,6 +1279,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
         document.fonts.load('600 30px Figtree')
       ]);
     } catch (e) { /* system fonts are fine as a fallback */ }
+    const [avatarA, avatarB] = await Promise.all([avatarPromiseA, avatarPromiseB]);
     const HEAD = '"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif';
     const BODY = 'Figtree,"Avenir Next","Segoe UI",system-ui,sans-serif';
     const A = state.cache, B = stateB.cache;
@@ -1267,18 +1307,23 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     ctx.textAlign = 'left'; ctx.fillStyle = CARD.muted; ctx.font = `600 30px ${BODY}`;
     ctx.fillText(SITE.name, pad + 34, 118);
 
-    // Two usernames flanking a VS mark, each with their own time zone underneath
+    // Two usernames flanking a VS mark, each with their own avatar and time zone underneath
+    const avR = 34;
+    const userXA = pad + avR * 2 + 16;
     ctx.textAlign = 'left'; ctx.fillStyle = CARD.ink;
+    drawAvatarCircle(ctx, avatarA, pad + avR, 197, avR, (state.user || '?').charAt(0).toUpperCase(), CARD.mid, CARD.ink, `700 ${avR}px ${HEAD}`);
     let fsA = 58; ctx.font = `700 ${fsA}px ${HEAD}`;
-    while (ctx.measureText(state.user).width > midX - pad - 60 && fsA > 32) { fsA -= 3; ctx.font = `700 ${fsA}px ${HEAD}`; }
-    ctx.fillText(state.user, pad, 214);
+    while (ctx.measureText(state.user).width > midX - 60 - userXA && fsA > 28) { fsA -= 3; ctx.font = `700 ${fsA}px ${HEAD}`; }
+    ctx.fillText(state.user, userXA, 214);
     ctx.fillStyle = CARD.muted; ctx.font = `500 22px ${BODY}`;
     ctx.fillText(zoneName(state.tz), pad, 244);
 
+    const userXB = W - pad - avR * 2 - 16;
     ctx.textAlign = 'right'; ctx.fillStyle = CARD.ink;
+    drawAvatarCircle(ctx, avatarB, W - pad - avR, 197, avR, (stateB.user || '?').charAt(0).toUpperCase(), CARD.mid, CARD.ink, `700 ${avR}px ${HEAD}`);
     let fsB = 58; ctx.font = `700 ${fsB}px ${HEAD}`;
-    while (ctx.measureText(stateB.user).width > midX - pad - 60 && fsB > 32) { fsB -= 3; ctx.font = `700 ${fsB}px ${HEAD}`; }
-    ctx.fillText(stateB.user, W - pad, 214);
+    while (ctx.measureText(stateB.user).width > userXB - (midX + 60) && fsB > 28) { fsB -= 3; ctx.font = `700 ${fsB}px ${HEAD}`; }
+    ctx.fillText(stateB.user, userXB, 214);
     ctx.fillStyle = CARD.muted; ctx.font = `500 22px ${BODY}`;
     ctx.fillText(zoneName(stateB.tz), W - pad, 244);
 
