@@ -230,6 +230,7 @@ svg.dial{width:100%;height:auto;display:block;overflow:visible}
 .hlab.day{text-align:right;padding-right:6px;font-size:.8rem}
 .hc{all:unset;box-sizing:border-box;height:30px;border-radius:4px;cursor:pointer}
 .hc.thin{opacity:.4}
+.hc.below{background-image:repeating-linear-gradient(45deg, rgba(255,255,255,.4) 0 2px, transparent 2px 6px)}
 .hc:hover,.hc.sel{outline:2px solid var(--ink);outline-offset:-1px}
 .hc:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
 .heatread{margin:14px 0 4px;min-height:1.6em;font-weight:500}
@@ -277,6 +278,14 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     <p class="lede">Enter a Chess.com username. The site reads that player's public games and shows which hours of the day they win the most, and which hours they lose the most.</p>
   </div>
 </header>
+
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <defs>
+    <pattern id="hatchLoss" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(255,255,255,.45)" stroke-width="2"/>
+    </pattern>
+  </defs>
+</svg>
 
 <div class="topbar" id="topbar">
   <div class="wrap">
@@ -343,7 +352,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     <section class="hero" aria-label="Results by hour">
       <div class="dialbox">
         <svg class="dial" id="dial" viewBox="0 0 420 420" role="group" aria-label="24-hour dial: length is games played, color is win rate"></svg>
-        <div class="legend"><span>Loses more</span><span class="ramp"></span><span>Wins more</span></div>
+        <div class="legend"><span>Loses more (hatched)</span><span class="ramp"></span><span>Wins more</span></div>
         <div class="legend">Longer wedge = more games played</div>
       </div>
       <div class="insight">
@@ -695,14 +704,36 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   function compute() { return computeFor(state.games, state.tc, state.tz); }
 
   // Ranks hours by win rate (only those with enough games); shared by the solo and compare views
+  // ~95% margin of error for a win rate, via the normal approximation — for display ("65% ± 9%").
+  function marginOfError(w, n) {
+    if (!n) return 0;
+    const p = w / n;
+    return 1.96 * Math.sqrt(p * (1 - p) / n);
+  }
+
+  // Wilson score interval — honest confidence bounds for a win rate. A lucky 3-for-3 hour gets
+  // a wide interval (low lower-bound, high upper-bound); a well-supported 60-for-100 hour gets a
+  // tight one. Ranking by these bounds, rather than the raw win rate, stops a small lucky streak
+  // from outranking a pattern backed by real data.
+  function wilsonBounds(w, n, z = 1.96) {
+    if (!n) return { lower: 0, upper: 0 };
+    const p = w / n, z2 = z * z, denom = 1 + z2 / n;
+    const center = (p + z2 / (2 * n)) / denom;
+    const margin = (z * Math.sqrt(p * (1 - p) / n + z2 / (4 * n * n))) / denom;
+    return { lower: Math.max(0, center - margin), upper: Math.min(1, center + margin) };
+  }
+
   function computeRank(hrs, tot, min) {
     const overall = tot.n ? tot.w / tot.n : 0;
     const maxN = Math.max(...hrs.map(h => h.n));
-    const q = hrs.map((s, h) => ({ h, ...s, wr: s.n ? s.w / s.n : 0 })).filter(x => x.n >= min);
-    q.sort((a, b) => b.wr - a.wr || b.n - a.n);
+    const q = hrs.map((s, h) => {
+      const wr = s.n ? s.w / s.n : 0, wb = wilsonBounds(s.w, s.n);
+      return { h, ...s, wr, moe: marginOfError(s.w, s.n), wLower: wb.lower, wUpper: wb.upper };
+    }).filter(x => x.n >= min);
     const k = Math.min(3, Math.floor(q.length / 2));
-    const best = q.slice(0, k);
-    const worst = q.slice(q.length - k).reverse();
+    // Best: highest confidence-adjusted floor. Worst: lowest confidence-adjusted ceiling.
+    const best = q.slice().sort((a, b) => b.wLower - a.wLower).slice(0, k);
+    const worst = q.slice().sort((a, b) => a.wUpper - b.wUpper).filter(x => !best.includes(x)).slice(0, k);
     const mostLosses = hrs.reduce((m, s, h) => s.l > hrs[m].l ? h : m, 0);
     return { best, worst, mostLosses, overall, maxN, k };
   }
@@ -737,6 +768,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       svg += `<g class="wedge${interactive ? '' : ' static'}" ${attrs}>
         <path class="track" d="${sector(cx, cy, r0, rMax, a0, a1)}"/>
         ${s.n ? `<path class="datum${s.n < min ? ' thin' : ''}" style="--i:${h};fill:${tone(wr, overall)}" d="${sector(cx, cy, r0, len, a0, a1)}"/>` : ''}
+        ${s.n && wr < overall ? `<path d="${sector(cx, cy, r0, len, a0, a1)}" fill="url(#hatchLoss)"/>` : ''}
       </g>`;
     }
     for (let h = 0; h < 24; h += 3) {
@@ -846,11 +878,11 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     }
 
     // Lists
-    const li = (x, cls) => `<li><button class="rk" data-h="${x.h}"><span>${range(x.h)}</span><span class="meter"><i style="width:${Math.round(x.wr * 100)}%;background:var(--${cls})"></i></span><span class="n">${pct(x.wr)} · ${x.n}</span></button></li>`;
+    const li = (x, cls) => `<li><button class="rk" data-h="${x.h}"><span>${range(x.h)}</span><span class="meter"><i style="width:${Math.round(x.wr * 100)}%;background:var(--${cls})"></i></span><span class="n">${pct(x.wr)} ±${Math.round(x.moe * 100)} · ${x.n}</span></button></li>`;
     $('#best').innerHTML = best.map(x => li(x, 'win')).join('');
     $('#worst').innerHTML = worst.map(x => li(x, 'loss')).join('');
     $('#rankNote').textContent = k
-      ? `Ranked by win rate. Only hours with at least ${state.min} games are ranked. The most losses in a single hour: ${hrs[mostLosses].l} at ${range(mostLosses)}.`
+      ? `Ranked by confidence, not just raw win rate, so a lucky small sample can't outrank a well-supported one. The "±" next to each is its margin of error — a wide one means treat the number loosely. Only hours with at least ${state.min} games are ranked. The most losses in a single hour: ${hrs[mostLosses].l} at ${range(mostLosses)}.`
       : `Lower "Minimum games per hour" or choose a longer period.`;
 
     // Dial
@@ -898,12 +930,12 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       html += `<span class="hlab day">${DAYS[d]}</span>`;
       row.forEach((c, h) => {
         const wr = c.n ? c.w / c.n : 0;
-        let bg = 'var(--track)', thin = false;
+        let bg = 'var(--track)', thin = false, below = false;
         if (c.n) {
-          if (state.heat === 'rate') { bg = tone(wr, overall); thin = c.n < cm; }
+          if (state.heat === 'rate') { bg = tone(wr, overall); thin = c.n < cm; below = wr < overall; }
           else bg = `color-mix(in srgb, var(--accent) ${Math.max(14, Math.round(c.n / maxCell * 100))}%, var(--track))`;
         }
-        html += `<button class="hc${thin ? ' thin' : ''}" data-d="${d}" data-hh="${h}" style="background:${bg}" aria-label="${DAYS_LONG[d]} ${range(h)}: ${c.n} games${c.n ? ', ' + pct(wr) + ' win rate' : ''}"></button>`;
+        html += `<button class="hc${thin ? ' thin' : ''}${below ? ' below' : ''}" data-d="${d}" data-hh="${h}" style="background-color:${bg}" aria-label="${DAYS_LONG[d]} ${range(h)}: ${c.n} games${c.n ? ', ' + pct(wr) + ' win rate' : ''}"></button>`;
       });
     });
     $('#heat').innerHTML = html;
@@ -911,7 +943,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     $('#heatMode').innerHTML = [['rate', 'Win rate'], ['volume', 'Games played']]
       .map(([k, l]) => `<button type="button" class="chip" data-mode="${k}" aria-pressed="${state.heat === k}">${l}</button>`).join('');
     $('#heatLegend').innerHTML = state.heat === 'rate'
-      ? '<span>Loses more</span><span class="ramp"></span><span>Wins more</span>'
+      ? '<span>Loses more (hatched)</span><span class="ramp"></span><span>Wins more</span>'
       : '<span>Fewer games</span><span class="ramp vol"></span><span>More games</span>';
 
     // Best and toughest slots among squares with enough games
@@ -939,9 +971,10 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     state.hour = h;
     const s = state.cache.hrs[h];
     const wr = s.n ? s.w / s.n : 0;
+    const moe = marginOfError(s.w, s.n);
     $('#readout').innerHTML = s.n
       ? `<div class="when">${range(h)}</div>
-         <div class="tally">${s.n} games · ${s.w} won · ${s.d} drawn · ${s.l} lost · ${pct(wr)} win rate</div>
+         <div class="tally">${s.n} games · ${s.w} won · ${s.d} drawn · ${s.l} lost · ${pct(wr)} win rate ${s.n >= 5 ? `(±${Math.round(moe * 100)})` : ''}</div>
          <div class="wdl" aria-hidden="true"><i class="w" style="flex:${s.w}"></i><i class="d" style="flex:${s.d}"></i><i class="l" style="flex:${s.l}"></i></div>`
       : `<div class="when">${range(h)}</div><div class="tally">No games at this hour.</div>`;
     document.querySelectorAll('[data-h]').forEach(el => el.classList.toggle('sel', +el.dataset.h === h));
@@ -979,8 +1012,8 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     const statBlock = (rank, tot, name) => {
       if (!tot.n) return `<p class="note">No games from ${esc(name)} match these filters.</p>`;
       if (rank.k < 1) return `<p class="note">Not enough games per hour yet to rank.</p>`;
-      return `<div class="cmp-stat" style="border-color:var(--win)"><div class="lbl">Best hour</div><div class="val">${pad(rank.best[0].h)}:00</div><div class="note">${pct(rank.best[0].wr)} wins · ${rank.best[0].n} games</div></div>
-        <div class="cmp-stat" style="border-color:var(--loss)"><div class="lbl">Toughest hour</div><div class="val">${pad(rank.worst[0].h)}:00</div><div class="note">${pct(rank.worst[0].wr)} wins · ${rank.worst[0].n} games</div></div>`;
+      return `<div class="cmp-stat" style="border-color:var(--win)"><div class="lbl">Best hour</div><div class="val">${pad(rank.best[0].h)}:00</div><div class="note">${pct(rank.best[0].wr)} ±${Math.round(rank.best[0].moe * 100)} wins · ${rank.best[0].n} games</div></div>
+        <div class="cmp-stat" style="border-color:var(--loss)"><div class="lbl">Toughest hour</div><div class="val">${pad(rank.worst[0].h)}:00</div><div class="note">${pct(rank.worst[0].wr)} ±${Math.round(rank.worst[0].moe * 100)} wins · ${rank.worst[0].n} games</div></div>`;
     };
     $('#statsA').innerHTML = statBlock(rankA, rA.tot, state.user);
     $('#statsB').innerHTML = statBlock(rankB, rB.tot, stateB.user);
@@ -1087,6 +1120,20 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   function wedgePath(ctx, cx, cy, r0, r1, h) {
     const a0 = (h * 15 - 90 + 0.9) * Math.PI / 180, a1 = ((h + 1) * 15 - 90 - 0.9) * Math.PI / 180;
     ctx.beginPath(); ctx.arc(cx, cy, r1, a0, a1); ctx.arc(cx, cy, r0, a1, a0, true); ctx.closePath();
+  }
+
+  // Diagonal hatching clipped to a wedge — the colorblind-safe cue that a wedge is below the
+  // player's own average, matching the dashed pattern used on the live site's SVG dial.
+  function hatchWedge(ctx, cx, cy, r0, r1, h) {
+    ctx.save();
+    wedgePath(ctx, cx, cy, r0, r1, h);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 2.5;
+    const span = r1 + 20;
+    for (let x = cx - span; x < cx + span; x += 7) {
+      ctx.beginPath(); ctx.moveTo(x, cy - span); ctx.lineTo(x + span, cy + span); ctx.stroke();
+    }
+    ctx.restore();
   }
 
   function roundRectPath(ctx, x, y, w, h, r) {
@@ -1210,7 +1257,9 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
         const len = r0 + 8 + (s.n / r.maxN) * (rMax - r0 - 8);
         wedgePath(ctx, cx, cy, r0, len, h);
         ctx.globalAlpha = s.n < state.min ? 0.4 : 1;
-        ctx.fillStyle = cardTone(s.w / s.n, r.overall); ctx.fill();
+        const wr = s.w / s.n;
+        ctx.fillStyle = cardTone(wr, r.overall); ctx.fill();
+        if (wr < r.overall) hatchWedge(ctx, cx, cy, r0, len, h);
         ctx.globalAlpha = 1;
       }
     }
@@ -1231,8 +1280,8 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     // Two headline stats under the dial
     let A, B;
     if (r.k >= 1) {
-      A = { label: 'Best hour', h: r.best[0].h, detail: `${pct(r.best[0].wr)} wins in ${r.best[0].n} games`, color: CARD.win };
-      B = { label: 'Toughest hour', h: r.worst[0].h, detail: `${pct(r.worst[0].wr)} wins in ${r.worst[0].n} games`, color: CARD.loss };
+      A = { label: 'Best hour', h: r.best[0].h, detail: `${pct(r.best[0].wr)} ±${Math.round(r.best[0].moe * 100)} in ${r.best[0].n} games`, color: CARD.win };
+      B = { label: 'Toughest hour', h: r.worst[0].h, detail: `${pct(r.worst[0].wr)} ±${Math.round(r.worst[0].moe * 100)} in ${r.worst[0].n} games`, color: CARD.loss };
     } else {
       const busy = hrs.findIndex(s => s.n === r.maxN);
       A = { label: 'Busiest hour', h: busy, detail: `${hrs[busy].n} games`, color: CARD.accent };
@@ -1359,7 +1408,9 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
           const len = r0 + 6 + (s.n / rank.maxN) * (rMax - r0 - 6);
           wedgePath(ctx, cx, cyD, r0, len, h);
           ctx.globalAlpha = s.n < state.min ? 0.4 : 1;
-          ctx.fillStyle = cardTone(s.w / s.n, rank.overall); ctx.fill();
+          const wr = s.w / s.n;
+          ctx.fillStyle = cardTone(wr, rank.overall); ctx.fill();
+          if (wr < rank.overall) hatchWedge(ctx, cx, cyD, r0, len, h);
           ctx.globalAlpha = 1;
         }
       }
@@ -1388,10 +1439,10 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       if (rank.k < 1) { ctx.fillStyle = CARD.muted; ctx.font = `500 24px ${BODY}`; ctx.fillText('Not enough games yet', cx, statY0); return; }
       ctx.fillStyle = CARD.muted; ctx.font = `600 22px ${BODY}`; ctx.fillText('Best', cx, statY0);
       ctx.fillStyle = CARD.win; ctx.font = `700 44px ${HEAD}`; ctx.fillText(`${pad2(rank.best[0].h)}:00`, cx, statY0 + 46);
-      ctx.fillStyle = CARD.muted; ctx.font = `500 22px ${BODY}`; ctx.fillText(`${pct(rank.best[0].wr)} · ${rank.best[0].n} games`, cx, statY0 + 76);
+      ctx.fillStyle = CARD.muted; ctx.font = `500 22px ${BODY}`; ctx.fillText(`${pct(rank.best[0].wr)} ±${Math.round(rank.best[0].moe * 100)} · ${rank.best[0].n} games`, cx, statY0 + 76);
       ctx.fillStyle = CARD.muted; ctx.font = `600 22px ${BODY}`; ctx.fillText('Toughest', cx, statY0 + 130);
       ctx.fillStyle = CARD.loss; ctx.font = `700 44px ${HEAD}`; ctx.fillText(`${pad2(rank.worst[0].h)}:00`, cx, statY0 + 176);
-      ctx.fillStyle = CARD.muted; ctx.font = `500 22px ${BODY}`; ctx.fillText(`${pct(rank.worst[0].wr)} · ${rank.worst[0].n} games`, cx, statY0 + 206);
+      ctx.fillStyle = CARD.muted; ctx.font = `500 22px ${BODY}`; ctx.fillText(`${pct(rank.worst[0].wr)} ±${Math.round(rank.worst[0].moe * 100)} · ${rank.worst[0].n} games`, cx, statY0 + 206);
     }
     miniStats(cxA, A.rank);
     miniStats(cxB, B.rank);
@@ -1533,7 +1584,18 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   const fromQuery = new URLSearchParams(location.search).get('u');
   const fromHash = decodeURIComponent(location.hash.slice(1));
   const deepLinkUser = fromQuery || (fromHash && fromHash !== 'about' ? fromHash : '');
-  if (deepLinkUser) { $('#u').value = deepLinkUser; run(); }
+  const deepLinkVs = new URLSearchParams(location.search).get('vs');
+  if (deepLinkUser) {
+    $('#u').value = deepLinkUser;
+    run().then(() => {
+      // A compare-share link (?u=A&vs=B): once A has loaded, auto-run the comparison with B
+      // too, rather than leaving the visitor on a solo view that misses the point of the link.
+      if (deepLinkVs && state.games.length) {
+        $('#cmpU').value = deepLinkVs;
+        runCompare();
+      }
+    });
+  }
 })();
 </script>
 </body>
