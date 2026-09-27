@@ -38,7 +38,9 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-GLT2S5M4M4"></script>
 <script>
   gtag('js', new Date());
-  gtag('config', 'G-GLT2S5M4M4');
+  // Report the page without its query string: shared links carry ?u=username, and usernames
+  // should stay out of analytics (see privacy.html).
+  gtag('config', 'G-GLT2S5M4M4', { page_location: location.origin + location.pathname });
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -633,15 +635,46 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   buildTzSelect();
 
   /* ---------- Data loading ---------- */
+  // Chess.com asks API clients to make requests one at a time; parallel requests can be
+  // rate-limited or blocked. This helper also retries transient failures (network hiccups,
+  // timeouts, 5xx, 429) with backoff, so one flaky month doesn't cost the visitor their result.
+  // Custom analytics events. Never pass usernames or anything identifying — only what the
+  // visitor did (analyzed, compared, shared, changed a filter) and coarse buckets.
+  function track(name, params = {}) {
+    try {
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', name, { ...params, page_location: location.origin + location.pathname });
+      }
+    } catch (e) { /* analytics must never break the app */ }
+  }
+  const gamesBucket = n => n < 100 ? '<100' : n < 500 ? '100-499' : n < 2000 ? '500-1999' : n < 10000 ? '2000-9999' : '10000+';
+
   async function getJSON(url, tries = 4) {
+    let lastErr;
     for (let i = 0; i < tries; i++) {
-      const res = await fetch(url);
-      if (res.status === 429) { await sleep(1200 * (i + 1)); continue; }
-      if (res.status === 404) throw Object.assign(new Error('notfound'), { code: 404 });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 15000);
+      try {
+        const res = await fetch(url, { signal: ctl.signal });
+        clearTimeout(timer);
+        if (res.status === 404) throw Object.assign(new Error('notfound'), { code: 404, final: true });
+        if (res.status === 429) {
+          const ra = parseFloat(res.headers.get('Retry-After'));
+          await sleep((ra > 0 ? ra * 1000 : 1500 * (i + 1)));
+          lastErr = Object.assign(new Error('ratelimit'), { code: 429 });
+          continue;
+        }
+        if (res.status >= 500) { lastErr = new Error('HTTP ' + res.status); await sleep(800 * (i + 1)); continue; }
+        if (!res.ok) throw Object.assign(new Error('HTTP ' + res.status), { final: true });
+        return await res.json();
+      } catch (e) {
+        clearTimeout(timer);
+        if (e.final) throw e;
+        lastErr = e;               // network error or timeout: back off and retry
+        await sleep(800 * (i + 1));
+      }
     }
-    throw Object.assign(new Error('ratelimit'), { code: 429 });
+    throw lastErr || new Error('network');
   }
 
   function setStatus(msg, progress, isErr, sel = '#status') {
@@ -652,37 +685,34 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
 
   async function load(user, months, statusSel = '#status') {
     setStatus(`Looking up ${user}…`, 0, false, statusSel);
-    const [idx, profile] = await Promise.all([
-      getJSON(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`),
-      loadProfile(user)
-    ]);
+    // Sequential, not parallel: archives first (it's the one that decides "player not found"),
+    // then the optional profile, then each month in turn.
+    const idx = await getJSON(`https://api.chess.com/pub/player/${encodeURIComponent(user.toLowerCase())}/games/archives`);
+    const profile = await loadProfile(user);
     let urls = idx.archives || [];
     if (months > 0) urls = urls.slice(-months);
     if (!urls.length) throw Object.assign(new Error('nogames'), { code: 'nogames' });
 
     const me = user.toLowerCase();
     const games = [];
-    const queue = urls.slice().reverse();
     let done = 0, failed = 0;
 
-    async function worker() {
-      while (queue.length) {
-        const url = queue.shift();
-        try {
-          const data = await getJSON(url);
-          for (const g of data.games || []) {
-            if (g.rules !== 'chess' || !g.end_time) continue;
-            const side = (g.white && g.white.username.toLowerCase() === me) ? g.white
-                       : (g.black && g.black.username.toLowerCase() === me) ? g.black : null;
-            if (!side) continue;
-            games.push({ t: g.end_time, r: classify(side.result), tc: g.time_class || 'other' });
-          }
-        } catch (e) { failed++; }
-        done++;
-        setStatus(`Reading month ${done} of ${urls.length} · ${games.length.toLocaleString()} games so far`, done / urls.length, false, statusSel);
-      }
+    for (const url of urls.slice().reverse()) {
+      try {
+        const data = await getJSON(url);
+        for (const g of data.games || []) {
+          if (g.rules !== 'chess' || !g.end_time) continue;
+          const side = (g.white && g.white.username.toLowerCase() === me) ? g.white
+                     : (g.black && g.black.username.toLowerCase() === me) ? g.black : null;
+          if (!side) continue;
+          games.push({ t: g.end_time, r: classify(side.result), tc: g.time_class || 'other' });
+        }
+      } catch (e) { failed++; }
+      done++;
+      setStatus(`Reading month ${done} of ${urls.length} · ${games.length.toLocaleString()} games so far`, done / urls.length, false, statusSel);
     }
-    await Promise.all([worker(), worker(), worker()]);
+    // Every single month failing means we couldn't reach Chess.com, not that there are no games
+    if (failed === urls.length) throw Object.assign(new Error('network'), { code: 'network' });
     return { games, profile, failed };
   }
 
@@ -1024,6 +1054,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     $('#soloView').hidden = false;
     $('#compareView').hidden = true;
     $('#cmpBtnCell').classList.add('open');
+    if (state.user && /[?&]vs=/.test(location.search)) history.replaceState(null, '', '?u=' + encodeURIComponent(state.user));
   }
 
   function setCmpStatus(msg, isErr) {
@@ -1052,14 +1083,18 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       $('#cmpFormWrap').classList.remove('open');
       compareOn = true;
       renderCompare();
+      history.replaceState(null, '', '?u=' + encodeURIComponent(state.user) + '&vs=' + encodeURIComponent(stateB.user));
+      track('compare_players', { games_bucket: gamesBucket(games.length), same_time_zone: stateB.tz === state.tz });
     } catch (e) {
       setCmpStatus(errorMessage(e), true);
+      track('compare_error', { error_code: String(e.code || 'network') });
     } finally {
       $('#cmpGo').disabled = false;
     }
   }
 
   $('#compareBtn').addEventListener('click', () => {
+    track('compare_open');
     $('#cmpBtnCell').classList.remove('open');
     $('#cmpFormWrap').classList.add('open');
     setTimeout(() => $('#cmpU').focus(), 320);
@@ -1072,7 +1107,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   $('#cmpForm').addEventListener('submit', e => { e.preventDefault(); runCompare(); });
   $('#cmpExit').addEventListener('click', exitCompare);
   $('#cmpAgain').addEventListener('click', () => { exitCompare(); $('#compareBtn').click(); });
-  $('#cmpTzB').addEventListener('change', e => { stateB.tz = e.target.value; if (compareOn) renderCompare(); });
+  $('#cmpTzB').addEventListener('change', e => { stateB.tz = e.target.value; if (compareOn) renderCompare(); track('filter_change', { filter: 'friend_time_zone' }); });
 
   /* ---------- Events ---------- */
   function pick(e) {
@@ -1095,7 +1130,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   $('#chips').addEventListener('click', e => {
     const b = e.target.closest('[data-tc]');
     if (!b) return;
-    state.tc = b.dataset.tc; state.hour = null; refresh();
+    state.tc = b.dataset.tc; state.hour = null; refresh(); track('filter_change', { filter: 'time_control', value: state.tc });
   });
   function pickCell(e) {
     const t = e.target.closest('.hc');
@@ -1105,10 +1140,10 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   $('#heatMode').addEventListener('click', e => {
     const b = e.target.closest('[data-mode]');
     if (!b) return;
-    state.heat = b.dataset.mode; render();
+    state.heat = b.dataset.mode; render(); track('filter_change', { filter: 'heatmap_mode', value: state.heat });
   });
-  $('#tz').addEventListener('change', e => { state.tz = e.target.value; state.hour = null; refresh(); });
-  $('#min').addEventListener('change', e => { state.min = +e.target.value; state.hour = null; refresh(); });
+  $('#tz').addEventListener('change', e => { state.tz = e.target.value; state.hour = null; refresh(); track('filter_change', { filter: 'time_zone' }); });
+  $('#min').addEventListener('change', e => { state.min = +e.target.value; state.hour = null; refresh(); track('filter_change', { filter: 'min_games', value: state.min }); });
 
   /* ---------- Share ---------- */
   const SITE = { name: 'Chess by Hour', domain: 'chessbyhour.com', url: 'https://chessbyhour.com/' };
@@ -1474,7 +1509,9 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     return { text, url };
   }
 
-  async function openShareGeneric(drawFn, filenameUser, infoFn, title) {
+  async function openShareGeneric(drawFn, filenameUser, infoFn, title, kind) {
+    sh.kind = kind;
+    track('share_open', { kind });
     shBusy(true); shMsg('Making your image…');
     $('#shareTitle').textContent = title;
     dlg.showModal();
@@ -1490,12 +1527,12 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
 
   async function openShare() {
     if (!state.cache || !state.cache.rank) return;
-    await openShareGeneric(drawCard, state.user, shareInfo, 'Share your results');
+    await openShareGeneric(drawCard, state.user, shareInfo, 'Share your results', 'solo');
   }
 
   async function openCompareShare() {
     if (!state.cache || !stateB.cache) return;
-    await openShareGeneric(drawCompareCard, `${state.user}-vs-${stateB.user}`, compareShareInfo, 'Share your comparison');
+    await openShareGeneric(drawCompareCard, `${state.user}-vs-${stateB.user}`, compareShareInfo, 'Share your comparison', 'compare');
   }
 
   function download() {
@@ -1516,6 +1553,11 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   $('#cmpShareBtn').addEventListener('click', openCompareShare);
   $('#shareClose').addEventListener('click', () => dlg.close());
   dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+  const SHARE_METHODS = { shNative: 'native', shX: 'x', shIG: 'instagram', shWA: 'whatsapp', shCopy: 'copy', shDl: 'download' };
+  dlg.addEventListener('click', e => {
+    const b = e.target.closest('button[id]');
+    if (b && SHARE_METHODS[b.id]) track('share_click', { method: SHARE_METHODS[b.id], kind: sh.kind || 'solo' });
+  }, true);
   $('#shNative').addEventListener('click', nativeShare);
   $('#shDl').addEventListener('click', () => { download(); shMsg('Image saved.'); });
   $('#shCopy').addEventListener('click', async () => {
@@ -1544,12 +1586,14 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     return "Couldn't reach Chess.com. Check your connection and try again.";
   }
 
-  async function run() {
+  async function run(source = 'form') {
     const user = $('#u').value.trim().replace(/^@/, '');
     if (!/^[A-Za-z0-9_-]{2,25}$/.test(user)) {
       setStatus('Enter a valid Chess.com username: letters, numbers, hyphens and underscores only.', null, true);
+      track('analyze_invalid_username', { source });
       return;
     }
+    const t0 = performance.now();
     $('#go').disabled = true;
     document.body.classList.add('compact');
     $('#results').hidden = true;
@@ -1567,14 +1611,19 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       $('#results').hidden = false;
       render(true);
       history.replaceState(null, '', '?u=' + encodeURIComponent(user));
+      track('analyze_player', {
+        source, period_months: months || 'all', games_bucket: gamesBucket(games.length),
+        load_seconds: Math.round((performance.now() - t0) / 100) / 10, failed_months: failed
+      });
     } catch (e) {
       setStatus(errorMessage(e), null, true);
+      track('analyze_error', { source, error_code: String(e.code || 'network') });
     } finally {
       $('#go').disabled = false;
     }
   }
 
-  $('#f').addEventListener('submit', e => { e.preventDefault(); run(); });
+  $('#f').addEventListener('submit', e => { e.preventDefault(); run('form'); });
 
   $('#yr').textContent = new Date().getFullYear();
 
@@ -1587,7 +1636,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   const deepLinkVs = new URLSearchParams(location.search).get('vs');
   if (deepLinkUser) {
     $('#u').value = deepLinkUser;
-    run().then(() => {
+    run(deepLinkVs ? 'compare_link' : 'shared_link').then(() => {
       // A compare-share link (?u=A&vs=B): once A has loaded, auto-run the comparison with B
       // too, rather than leaving the visitor on a solo view that misses the point of the link.
       if (deepLinkVs && state.games.length) {
