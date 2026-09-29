@@ -40,6 +40,8 @@
   gtag('js', new Date());
   // Report the page without its query string: shared links carry ?u=username, and usernames
   // should stay out of analytics (see privacy.html).
+  // The private reply assistant (?assist) is your own tool: keep its use out of analytics.
+  if (/[?&]assist\b/.test(location.search)) window['ga-disable-G-GLT2S5M4M4'] = true;
   gtag('config', 'G-GLT2S5M4M4', { page_location: location.origin + location.pathname });
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -270,6 +272,26 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
 .sitefoot nav{display:flex;gap:22px;flex-wrap:wrap}
 .sitefoot .fine{flex-basis:100%}
 .foot{color:var(--muted);font-size:.85rem;max-width:80ch;margin:28px 0 0}
+/* Reply assistant (?assist) */
+.assist[hidden]{display:none}
+.assist{margin:24px 0 8px;padding:20px 22px;background:var(--surface);border:1px solid var(--line);border-radius:16px}
+.as-head h2{font:700 1.3rem var(--head);margin:0 0 4px}
+.as-head .note{margin:0 0 14px;max-width:80ch}
+.as-form{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.as-form .field{flex:1 1 220px}
+.as-form .as-url{flex:2 1 320px}
+.as-form input{width:100%}
+#asStatus{min-height:1.4em;margin:10px 0 0}
+#asStatus.err{color:var(--loss);font-weight:500}
+.as-out[hidden]{display:none}
+.as-out{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:22px;margin-top:14px;align-items:start}
+@media (max-width:760px){.as-out{grid-template-columns:minmax(0,1fr)}}
+#asCanvas{display:block;width:100%;max-width:300px;height:auto;border-radius:12px;border:1px solid var(--line)}
+.as-side textarea{font:inherit;font-size:.95rem;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;resize:vertical}
+.as-count{font-size:.8rem;color:var(--muted);margin:4px 0 10px;text-align:right}
+.as-count.over{color:var(--loss);font-weight:600}
+.as-btns{display:flex;flex-wrap:wrap;gap:8px}
+#asMsg{margin:10px 0 0;min-height:1.4em}
 .foot p{margin:0 0 6px}
 </style>
 </head>
@@ -311,6 +333,40 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
 </div>
 
 <div class="wrap">
+  <section class="assist" id="assist" hidden aria-labelledby="asTitle">
+    <div class="as-head">
+      <h2 id="asTitle">Reply assistant</h2>
+      <p class="note">Private tool: generates a share image and a reply draft for you to review and post yourself. Keep replies personal and relevant, and only a handful a day — identical replies at volume count as spam on X.</p>
+    </div>
+    <form id="asForm" class="as-form" autocomplete="off">
+      <label class="field as-url"><span>X post link (optional)</span>
+        <input id="asPost" type="url" placeholder="https://x.com/someone/status/123…" spellcheck="false">
+      </label>
+      <label class="field"><span>Their Chess.com username</span>
+        <input id="asUser" type="text" placeholder="e.g. hikaru" autocapitalize="off" spellcheck="false" required>
+      </label>
+      <button class="primary" id="asGo" type="submit">Prepare reply</button>
+    </form>
+    <div id="asStatus" class="note" role="status" aria-live="polite"></div>
+    <div class="as-out" id="asOut" hidden>
+      <canvas id="asCanvas" width="1080" height="1350" aria-label="Share image preview"></canvas>
+      <div class="as-side">
+        <label class="field"><span>Reply draft (edit freely)</span>
+          <textarea id="asText" rows="7"></textarea>
+        </label>
+        <div class="as-count" id="asCount"></div>
+        <div class="as-btns">
+          <button type="button" class="btn" id="asAlt">Different wording</button>
+          <button type="button" class="btn" id="asCopyImg">1. Copy image</button>
+          <button type="button" class="btn" id="asCopyTxt">Copy text</button>
+          <button type="button" class="btn compare-top" id="asOpen">2. Open reply on X</button>
+          <button type="button" class="btn" id="asDl">Download image</button>
+        </div>
+        <p class="note" id="asMsg" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
   <main id="results" hidden>
     <div class="player-row">
       <section class="player" id="player" hidden aria-label="Player">
@@ -640,7 +696,13 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   // timeouts, 5xx, 429) with backoff, so one flaky month doesn't cost the visitor their result.
   // Custom analytics events. Never pass usernames or anything identifying — only what the
   // visitor did (analyzed, compared, shared, changed a filter) and coarse buckets.
+  // ?assist opens the private reply assistant (see the bottom of this script)
+  const ASSIST = new URLSearchParams(location.search).has('assist');
+  // Address-bar updates, skipped in assistant mode so a reload keeps you in the assistant
+  function setUrl(qs) { if (!ASSIST) history.replaceState(null, '', qs); }
+
   function track(name, params = {}) {
+    if (ASSIST) return;
     try {
       if (typeof window.gtag === 'function') {
         window.gtag('event', name, { ...params, page_location: location.origin + location.pathname });
@@ -1054,7 +1116,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
     $('#soloView').hidden = false;
     $('#compareView').hidden = true;
     $('#cmpBtnCell').classList.add('open');
-    if (state.user && /[?&]vs=/.test(location.search)) history.replaceState(null, '', '?u=' + encodeURIComponent(state.user));
+    if (state.user && /[?&]vs=/.test(location.search)) setUrl('?u=' + encodeURIComponent(state.user));
   }
 
   function setCmpStatus(msg, isErr) {
@@ -1083,7 +1145,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       $('#cmpFormWrap').classList.remove('open');
       compareOn = true;
       renderCompare();
-      history.replaceState(null, '', '?u=' + encodeURIComponent(state.user) + '&vs=' + encodeURIComponent(stateB.user));
+      setUrl('?u=' + encodeURIComponent(state.user) + '&vs=' + encodeURIComponent(stateB.user));
       track('compare_players', { games_bucket: gamesBucket(games.length), same_time_zone: stateB.tz === state.tz });
     } catch (e) {
       setCmpStatus(errorMessage(e), true);
@@ -1610,7 +1672,7 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
       setStatus('');
       $('#results').hidden = false;
       render(true);
-      history.replaceState(null, '', '?u=' + encodeURIComponent(user));
+      setUrl('?u=' + encodeURIComponent(user));
       track('analyze_player', {
         source, period_months: months || 'all', games_bucket: gamesBucket(games.length),
         load_seconds: Math.round((performance.now() - t0) / 100) / 10, failed_months: failed
@@ -1626,6 +1688,92 @@ dialog::backdrop{background:rgba(6,10,14,.65)}
   $('#f').addEventListener('submit', e => { e.preventDefault(); run('form'); });
 
   $('#yr').textContent = new Date().getFullYear();
+
+  /* ---------- Reply assistant (?assist) ----------
+     Private helper for replying by hand on X: generates a player's share image and a short,
+     honest reply draft. It never posts anything itself — you review, edit and post. */
+  if (ASSIST) {
+    $('#assist').hidden = false;
+    document.body.classList.add('compact');
+    const as = { blob: null, drafts: [], i: 0 };
+    const asStatus = (m, err) => { const e = $('#asStatus'); e.textContent = m; e.className = 'note' + (err ? ' err' : ''); };
+    const asMsg = m => { $('#asMsg').textContent = m; };
+    const postId = url => { const m = String(url).match(/(?:x|twitter)\.com\/[^/?#]+\/status(?:es)?\/(\d+)/i); return m ? m[1] : ''; };
+
+    // X counts every link as 23 characters, whatever its real length
+    function xLength(t) { return t.replace(/https?:\/\/\S+/g, 'x'.repeat(23)).length; }
+    function updateCount() {
+      const n = xLength($('#asText').value), el = $('#asCount');
+      el.textContent = `${n} / 280`;
+      el.classList.toggle('over', n > 280);
+    }
+
+    function buildDrafts() {
+      const r = state.cache.rank, pe = state.cache.persona, url = shareInfo().url;
+      if (!r || r.k < 1) {
+        return [`Made a free tool that maps when you win and lose chess games by hour of the day. Your card is attached 👇 ${url}`];
+      }
+      const B = pad(r.best[0].h), W = pad(r.worst[0].h);
+      const bwr = pct(r.best[0].wr), wwr = pct(r.worst[0].wr), bn = r.best[0].n;
+      const d = [
+        `Ran your public games through a tool I built: you win most around ${B}:00 (${bwr} over ${bn} games) and struggle most around ${W}:00. Your card 👇 ${url}`,
+        `Got curious whether the clock shows up in your results, so I checked. Best hour: ${B}:00. Toughest: ${W}:00. Full breakdown (I made this): ${url}`,
+        `Fun stat from your games: ${bwr} wins around ${B}:00 vs ${wwr} around ${W}:00. I built a free tool that charts it: ${url}`
+      ];
+      if (pe) d.splice(1, 0, `Your games say you're a "${pe.name}": best around ${B}:00, toughest around ${W}:00. Side project of mine that maps this: ${url}`);
+      return d;
+    }
+    function showDraft() {
+      $('#asText').value = as.drafts[as.i % as.drafts.length];
+      updateCount();
+    }
+
+    async function prepare() {
+      const user = $('#asUser').value.trim().replace(/^@/, '');
+      if (!/^[A-Za-z0-9_-]{2,25}$/.test(user)) { asStatus('Enter a valid Chess.com username.', true); return; }
+      $('#asGo').disabled = true; $('#asOut').hidden = true; asMsg('');
+      asStatus(`Analyzing ${user}…`);
+      $('#u').value = user;
+      await run('assist');
+      $('#asGo').disabled = false;
+      const ok = state.user && state.user.toLowerCase() === user.toLowerCase() && !$('#results').hidden && state.cache && state.cache.rank;
+      if (!ok) { asStatus($('#status').textContent || "Couldn't analyze that player.", true); return; }
+      const cv = $('#asCanvas');
+      await drawCard(cv);
+      as.blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+      as.drafts = buildDrafts(); as.i = Math.floor(Math.random() * as.drafts.length);
+      showDraft();
+      $('#asOut').hidden = false;
+      const id = postId($('#asPost').value);
+      asStatus(id ? `Ready. Reply goes to post ${id}.` : 'Ready. Add the X post link above to reply directly to it.');
+    }
+
+    $('#asForm').addEventListener('submit', e => { e.preventDefault(); prepare(); });
+    $('#asText').addEventListener('input', updateCount);
+    $('#asAlt').addEventListener('click', () => { as.i++; showDraft(); });
+    $('#asCopyTxt').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText($('#asText').value); asMsg('Text copied.'); }
+      catch (e) { asMsg("Couldn't copy the text. Select it and copy manually."); }
+    });
+    $('#asCopyImg').addEventListener('click', async () => {
+      try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': as.blob })]); asMsg('Image copied. Next, open the reply on X and paste it (Ctrl+V / Cmd+V).'); }
+      catch (e) { asMsg("This browser can't copy images. Use Download image and attach it instead."); }
+    });
+    $('#asDl').addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(as.blob); a.download = `chess-by-hour-${state.user}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      asMsg('Image saved.');
+    });
+    $('#asOpen').addEventListener('click', () => {
+      const text = $('#asText').value, id = postId($('#asPost').value);
+      if (xLength(text) > 280) { asMsg('The draft is over 280 characters. Shorten it first.'); return; }
+      const q = (id ? 'in_reply_to=' + id + '&' : '') + 'text=' + encodeURIComponent(text);
+      window.open('https://x.com/intent/post?' + q, '_blank', 'noopener');
+      asMsg(id ? 'Reply window opened. Paste the image, check the text, then post.' : 'No post link given, so this opened a new post rather than a reply.');
+    });
+  }
 
   // Support links like index.html?u=hikaru (query param, so link-preview crawlers see a distinct
   // URL per username — a #fragment is never sent to the server, so every hash link looked identical
